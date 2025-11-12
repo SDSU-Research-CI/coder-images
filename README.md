@@ -16,17 +16,3 @@ In order to build the Jupyter Docker Stack-based images locally, we need to spec
 ```
 docker build . -f Dockerfile -t [your-dockerhub-username]/[image-name]:v[x.x] --target notebook-image
 ```
-
-#### Local Testing
-
-In order to test these images locally, we need to include the second build stage `local-testing` which installs and runs coder in the container image.
-This includes a custom script for use as the container's entrypoint `run-coder.sh`.
-The manual configuration in the `local-testing` target is typically handled by Coder via template, so as to install the latest version at runtime as opposed to manually installing a version at build time.
-
-*Note*: The `local-testing` targets should **NOT** be used with Coder due to the increased container image size and potentially conflicting installations of coder.
-
-Due to the location of `run-coder.sh`, Jupyter images should be built from the root of the repository, for example:
-
-```
-docker build . -f /image/jupyter/minimal/Dockerfile -t [your-dockerhub-username]/coder-minimal-notebook:v[x.x] --target local-testing
-```

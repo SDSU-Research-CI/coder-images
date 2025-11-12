@@ -39,31 +39,3 @@ USER coder
 WORKDIR /home/coder
 ENV HOME=/home/coder
 ENV NB_USER=coder
-
-FROM notebook-image AS local-testing
-
-USER root
-WORKDIR /root
-
-# Fix permissions for coder home directory
-RUN chown -R coder:coder /home/coder
-
-# Add directory for coder install for local testing in Docker; transer owner to coder user & group
-RUN mkdir -p /opt/code-server \
- && chown -R coder:coder /opt/code-server
-
-USER coder
-WORKDIR /home/coder
-
-# Install coder/code-server for local testing in Docker -- coder will install its own version at runtime
-RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/opt/code-server
-
-# Override entrypoint and healthcheck from Jupyter base image for local testing in Docker
-COPY run-coder.sh /opt/run-coder.sh
-ENTRYPOINT [ "sh", "/opt/run-coder.sh" ]
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
-  CMD curl -fsS http://0.0.0.0:13337/healthz || exit 1
-
-# Expose coder port for local testing in Docker
-EXPOSE 13337
-
