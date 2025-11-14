@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=quay.io/jupyter/minimal-notebook:2025-07-07
+ARG BASE_IMAGE=quay.io/jupyter/minimal-notebook:latest
 
 FROM ${BASE_IMAGE} AS notebook-image
 
@@ -14,6 +14,7 @@ RUN apt-get update && \
     locales \
     sudo \
     rclone \
+    vim \
  && rm -rf /var/lib/apt/lists/*
 
 # Generate the desired locale (en_US.UTF-8)
@@ -24,18 +25,6 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
-# Remove the `jovyan` user and add a user `coder` so that you're not developing as the `root` user
-RUN userdel -r ${NB_USER} \
- && useradd coder \
-    --create-home \
-    --shell=/bin/bash \
-    --uid=1000 \
-    --user-group \
- && echo "coder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd \
- && chown -R coder:coder /home/coder
-
-# Switch to coder user, override env vars from Jupyter base image
-USER coder
-WORKDIR /home/coder
-ENV HOME=/home/coder
-ENV NB_USER=coder
+ARG NB_USER=jovyan
+RUN usermod -aG sudo "${NB_USER}" && \
+    echo "%sudo ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/99-nopasswd
