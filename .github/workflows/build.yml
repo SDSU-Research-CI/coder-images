@@ -65,6 +65,5 @@ jobs:
           push: true
           tags: |
             ${{ steps.names.outputs.image }}:latest
-            # Optional: mirror upstream tag (e.g., 2024-09-01), if you parse it.
           cache-from: type=gha
           cache-to: type=gha,mode=max
