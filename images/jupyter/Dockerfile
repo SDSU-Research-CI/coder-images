@@ -14,7 +14,7 @@ RUN apt-get update && \
     locales \
     sudo \
     rclone \
-    && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/*
 
 # Generate the desired locale (en_US.UTF-8)
 RUN locale-gen en_US.UTF-8
