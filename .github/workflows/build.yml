@@ -3,10 +3,15 @@ name: Build Jupyter Coder Images
 
 on:
   workflow_dispatch:
+    inputs:
+      jupyter_tag:
+        description: 'Jupyter tag (e.g. 2025-11-10)'
+        required: false
+        default: 'latest' 
   push:
     branches: [ main ]
     paths:
-      - "images/**"
+      - "images/jupyter/**"
       - ".github/workflows/build.yml"
 
 jobs:
@@ -19,13 +24,13 @@ jobs:
       fail-fast: false
       matrix:
         base:
-          - jupyter/minimal-notebook:latest
-          - jupyter/scipy-notebook:latest
-          # - jupyter/datascience-notebook:latest
-          # - jupyter/tensorflow-notebook:latest
-          # - jupyter/pytorch-notebook:latest
-          # - jupyter/r-notebook:latest
-          # - jupyter/all-spark-notebook:latest
+          - quay.io/jupyter/minimal-notebook:${{ inputs.jupyter_tag || vars.JUPYTER_TAG || 'latest' }}
+          - quay.io/jupyter/scipy-notebook:${{ inputs.jupyter_tag || vars.JUPYTER_TAG || 'latest' }}
+          - quay.io/jupyter/datascience-notebook:${{ inputs.jupyter_tag || vars.JUPYTER_TAG || 'latest' }}
+          - quay.io/jupyter/tensorflow-notebook:cuda-${{ inputs.jupyter_tag || vars.JUPYTER_TAG || 'latest' }}
+          - quay.io/jupyter/pytorch-notebook:cuda12-${{ inputs.jupyter_tag || vars.JUPYTER_TAG || 'latest' }}
+          - quay.io/jupyter/r-notebook:${{ inputs.jupyter_tag || vars.JUPYTER_TAG || 'latest' }}
+          - quay.io/jupyter/julia-notebook:${{ inputs.jupyter_tag || vars.JUPYTER_TAG || 'latest' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,7 +54,7 @@ jobs:
           # e.g., jupyter/scipy-notebook:latest -> scipy-notebook
           NAME="$(echo "$BASE" | awk -F'[/:]' '{print $(NF-1)}')"
           echo "name=$NAME" >> $GITHUB_OUTPUT
-          # Tag scheme: ghcr.io/org/repo/<stack>:<upstream-tag>-coder
+          # Tag scheme: ghcr.io/org/repo/<stack>:<jupyter-tag>-coder
           OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
           REPO="$(echo '${{ github.repository }}' | cut -d/ -f2 | tr '[:upper:]' '[:lower:]')"
           echo "image=ghcr.io/$OWNER/$REPO/$NAME" >> $GITHUB_OUTPUT
@@ -65,5 +70,6 @@ jobs:
           push: true
           tags: |
             ${{ steps.names.outputs.image }}:latest
+            ${{ steps.names.outputs.image }}:${{ inputs.jupyter_tag || vars.JUPYTER_TAG || 'latest' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
