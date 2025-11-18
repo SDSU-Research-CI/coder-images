@@ -25,6 +25,4 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
-ARG NB_USER=jovyan
-RUN usermod -aG sudo "${NB_USER}" && \
-    echo "%sudo ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/99-nopasswd
+RUN echo "${NB_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd
