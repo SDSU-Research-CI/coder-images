@@ -26,3 +26,10 @@ ENV LANGUAGE=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
 RUN echo "${NB_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/nopasswd
+
+ARG CODE_SERVER_VERSION=latest
+RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/opt/code-server \
+ && ln -s /opt/code-server/bin/code-server /usr/local/bin/code-server
+
+USER ${NB_USER}
+WORKDIR /home/$NB_USER
