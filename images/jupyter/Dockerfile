@@ -33,3 +33,5 @@ RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone
 
 USER ${NB_USER}
 WORKDIR /home/$NB_USER
+
+RUN pip install jupyter-codeserver-proxy
