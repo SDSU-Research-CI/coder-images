@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      count: ${{ steps.set-matrix.outputs.count }}
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +21,7 @@ jobs:
         id: set-matrix
         run: |
           set -euo pipefail
-          matrix="$(python - <<'PY'
+          python - <<'PY' | while read -r line; do echo "$line" >> "$GITHUB_OUTPUT"; done
           import json
           import pathlib
           import sys
@@ -46,14 +47,14 @@ jobs:
               "base_image": base_image,
             })
 
-          print(json.dumps({"include": items}))
+          print("matrix=" + json.dumps({"include": items}))
+          print("count=" + str(len(items)))
           PY
-          )"
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   build:
     runs-on: ubuntu-latest
     needs: matrix
+    if: ${{ needs.matrix.outputs.count != '0' }}
     permissions:
       contents: read
       packages: write
