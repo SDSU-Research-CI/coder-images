@@ -38,3 +38,24 @@ Execute the following to retag a locally built image, replacing the notebook nam
 docker image tag [container-id] ghcr.io/sdsu-research-ci/coder-images/[notebook-name]:[jupyter_tag]
 ```
 - I.E. `docker image tag ea984ac26018 ghcr.io/sdsu-research-ci/coder-images/minimal-notebook:2025-11-10`
+
+## Custom Images
+
+### GitHub Actions Build Instructions
+
+Custom images under `images/jupyter-custom` are built by the GitHub Actions
+[.github/workflows/build-jupyter-custom.yml](./.github/workflows/build-jupyter-custom.yml)
+workflow. It builds each subdirectory with a `Dockerfile` and pushes
+`ghcr.io/<org>/<repo>/<image>:latest`, always using the latest tag from the
+repo's Jupyter images for the `BASE_IMAGE` argument.
+Custom builds will skip any `Dockerfile` that does not define `ARG BASE_IMAGE`.
+
+### llm-notebook
+
+`images/jupyter-custom/llm-notebook/Dockerfile` builds on the repackaged `pytorch-notebook` image produced by this repo.
+
+```bash
+docker build . \
+  -f images/jupyter-custom/llm-notebook/Dockerfile \
+  -t ghcr.io/sdsu-research-ci/coder-images/llm-notebook:dev
+```
