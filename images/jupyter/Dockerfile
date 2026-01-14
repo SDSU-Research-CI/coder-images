@@ -12,8 +12,9 @@ RUN apt-get update && \
     git \
     jq \
     locales \
-    sudo \
+    nvim \
     rclone \
+    sudo \
     vim \
  && rm -rf /var/lib/apt/lists/*
 
