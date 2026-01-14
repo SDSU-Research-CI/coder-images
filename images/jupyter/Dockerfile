@@ -12,7 +12,7 @@ RUN apt-get update && \
     git \
     jq \
     locales \
-    nvim \
+    neovim \
     rclone \
     sudo \
     vim \
@@ -36,3 +36,4 @@ USER ${NB_USER}
 WORKDIR /home/$NB_USER
 
 RUN pip install jupyter-codeserver-proxy
+

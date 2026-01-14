@@ -41,14 +41,30 @@ docker image tag [container-id] ghcr.io/sdsu-research-ci/coder-images/[notebook-
 
 ## Custom Images
 
-### GitHub Actions Build Instructions
+### Local Build, Tag, and Push
 
-Custom images under `images/jupyter-custom` are built by the GitHub Actions
-[.github/workflows/build-jupyter-custom.yml](./.github/workflows/build-jupyter-custom.yml)
-workflow. It builds each subdirectory with a `Dockerfile` and pushes
-`ghcr.io/<org>/<repo>/<image>:latest`, always using the latest tag from the
-repo's Jupyter images for the `BASE_IMAGE` argument.
-Custom builds will skip any `Dockerfile` that does not define `ARG BASE_IMAGE`.
+Custom images under `images/jupyter-custom` must be built locally due to
+GitHub Actions image size limits. Each subdirectory with a `Dockerfile`
+produces `ghcr.io/<org>/<repo>/<image>`.
+
+Build locally, replacing the notebook name:
+```bash
+docker build . \
+  -f images/jupyter-custom/<notebook>/Dockerfile \
+  -t ghcr.io/sdsu-research-ci/coder-images/<notebook>:dev
+```
+
+Retag for release:
+```bash
+docker image tag \
+  ghcr.io/sdsu-research-ci/coder-images/<notebook>:dev \
+  ghcr.io/sdsu-research-ci/coder-images/<notebook>:<jupyter_tag>
+```
+
+Push the release tag:
+```bash
+docker push ghcr.io/sdsu-research-ci/coder-images/<notebook>:<jupyter_tag>
+```
 
 ### llm-notebook
 
