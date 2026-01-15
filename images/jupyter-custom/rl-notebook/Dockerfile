@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/minimal-notebook:2026-01-12
+ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/pytorch-notebook:2026-01-12
 
 FROM ${BASE_IMAGE}
 
@@ -46,6 +46,14 @@ RUN wget https://downloads.globus.org/globus-connect-personal/linux/stable/globu
  && GLOBUS_DIR="$(find /opt -maxdepth 1 -type d -name 'globusconnectpersonal-*' | head -n 1)" \
  && ln -sfn "$GLOBUS_DIR" /opt/globusconnectpersonal
 
+# Download and install latest VS Code
+RUN wget "https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64" \
+    -O /opt/vscode-latest.deb \
+ && apt-get install -y /opt/vscode-latest.deb \
+ && rm /opt/vscode-latest.deb \
+ && echo -e "[Desktop Entry]\nName=Visual Studio Code\nComment=Code Editing. Redefined.\nGenericName=Text Editor\nExec=/usr/share/code/code --disable-dev-shm-usage --unity-launch %F\nIcon=vscode\nType=Application\nStartupNotify=false\nStartupWMClass=Code\nCategories=TextEditor;Development;IDE;\nMimeType=text/plain;inode/directory;application/x-code-workspace;\nActions=new-empty-window;\nKeywords=vscode;\n[Desktop Action new-empty-window]\nName=New Empty Window\nExec=/usr/share/code/code --disable-dev-shm-usage --new-window %F\nIcon=vscode"\
+    > /usr/share/applications/code.desktop
+
 # Switch back to notebook user
 USER $NB_USER
 WORKDIR /home/${NB_USER}
@@ -53,6 +61,23 @@ WORKDIR /home/${NB_USER}
 # Install Jupyter Desktop
 RUN /opt/conda/bin/conda install -y -q -c manics websockify
 RUN pip install jupyter-remote-desktop-proxy
-RUN pip install nbgitpuller
 
+# Install Gymnasium with atari and mujoco environments
+RUN pip install swig
+RUN pip install -U "gymnasium[all]" shimmy
+RUN pip install -U "autorom[accept-rom-license]"
+
+# Install additional packages
+RUN pip install -U \
+    pytest \
+    "ray[rllib]" \
+    opencv-python-headless
+RUN mamba install -y -n base \
+    moviepy \
+    ffmpeg \
+    tqdm
+
+# Environment variables
 ENV PATH=/opt/globusconnectpersonal:$PATH
+ENV SDL_AUDIODRIVER=dummy
+ENV AUDIODEV=null

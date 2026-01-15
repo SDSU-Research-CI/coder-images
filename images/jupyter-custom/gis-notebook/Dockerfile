@@ -1,13 +1,6 @@
-ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/pytorch-notebook:latest
+ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/pytorch-notebook:2026-01-12
 FROM ${BASE_IMAGE}
 
-USER root
-WORKDIR /opt
-
-# Install rclone
-RUN curl https://rclone.org/install.sh | bash
-
-# Switch back to notebook user
 USER $NB_USER
 WORKDIR /home/${NB_USER}
 
