@@ -9,7 +9,8 @@ WORKDIR /opt
 # Install linux dependencies
 RUN apt-get update -y \
  && sudo apt-get install -y \
-    cmake
+    cmake \
+    gfortran
 
 # Setup for SKIRT
 RUN mkdir SKIRT \

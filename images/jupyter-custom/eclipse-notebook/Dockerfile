@@ -5,8 +5,8 @@ FROM ${BASE_IMAGE}
 USER root
 WORKDIR /opt/
 
-ENV ECLIPSE_VERSION=2024-06
-ENV ECLIPSE_URL=https://ftp2.osuosl.org/pub/eclipse/technology/epp/downloads/release/2024-06/R/eclipse-cpp-2024-06-R-linux-gtk-x86_64.tar.gz
+ENV ECLIPSE_VERSION=2025-12
+ENV ECLIPSE_URL=https://ftp2.osuosl.org/pub/eclipse/technology/epp/downloads/release/2025-12/R/eclipse-cpp-2025-12-R-linux-gtk-x86_64.tar.gz
 
 # Install latest Eclipse C/C++
 RUN apt-get -y update \

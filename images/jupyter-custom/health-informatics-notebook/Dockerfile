@@ -5,8 +5,10 @@ FROM ${BASE_IMAGE}
 ARG PYCHARM_VERSION=2025.2.0.1
 
 # Install packages via conda (issues w/ deepvariant & pyseer)
-RUN mamba install -y -c conda-forge -n base biopython pytest \
- && mamba install -y -c bioconda -n base \
+RUN mamba create -y -n bioenv --clone base \
+ && mamba install -y -c conda-forge -n bioenv python=3.11 \
+ && mamba install -y -c conda-forge -c bioconda -n bioenv \
+    pytest \
     fastp \
     samtools \
     bwa \
@@ -22,9 +24,9 @@ RUN mamba install -y -c conda-forge -n base biopython pytest \
     mafft \
     trimmomatic \
     bowtie2 \
-    pyseer \
     clustalo \
     clustalw \
+    pyseer \
  && mamba install -y -c manics -n base websockify
 
 USER root
@@ -67,4 +69,5 @@ USER ${NB_USER}
 WORKDIR /home/${NB_USER}
 
 # Install Jupyter Desktop
-RUN pip install jupyter-remote-desktop-proxy
+RUN pip install \
+    jupyter-remote-desktop-proxy

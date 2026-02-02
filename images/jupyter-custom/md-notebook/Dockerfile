@@ -108,7 +108,7 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86
 COPY --from=gromacs-builder /usr/local/gromacs /usr/local/gromacs
 
 # Install Quantum Espresso
-COPY qe-7.4.1-ReleasePack.tar.gz /opt/
+COPY ./qe-7.4.1-ReleasePack.tar.gz /opt/
 RUN tar -xvf qe-7.4.1-ReleasePack.tar.gz \
  && rm qe-7.4.1-ReleasePack.tar.gz
 
