@@ -1,4 +1,4 @@
-FROM ubuntu:noble
+FROM chabbytmd1/parabricks-snakemake:v0.6
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
