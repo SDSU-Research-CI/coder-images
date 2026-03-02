@@ -32,6 +32,10 @@ ARG CODE_SERVER_VERSION=latest
 RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/opt/code-server \
  && ln -s /opt/code-server/bin/code-server /usr/local/bin/code-server
 
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh \
+ && fix-permissions /usr/local/bin \
+ && fix-permissions /home/${NB_USER}
+
 USER ${NB_USER}
 WORKDIR /home/$NB_USER
 
