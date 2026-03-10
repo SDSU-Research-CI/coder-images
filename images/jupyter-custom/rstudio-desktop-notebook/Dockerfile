@@ -44,6 +44,11 @@ RUN curl -o rstudio-server.deb -fsSL "https://download2.rstudio.org/server/${UBU
     apt-get install -y ./rstudio-server.deb && rm -f rstudio-server.deb && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Ensure X11 socket dir has canonical ownership/mode for Xvnc.
+RUN mkdir -p /tmp/.X11-unix \
+ && chown root:root /tmp/.X11-unix \
+ && chmod 1777 /tmp/.X11-unix
+
 # Switch back to notebook user
 USER $NB_USER
 WORKDIR /home/${NB_USER}
@@ -56,3 +61,6 @@ RUN pip install jupyter-server-proxy jupyter-remote-desktop-proxy
 RUN pip install jupyter-rsession-proxy
 
 ENV LD_LIBRARY_PATH=/opt/conda/lib/R/lib:$LD_LIBRARY_PATH
+ENV LIBGL_ALWAYS_SOFTWARE=1
+ENV MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+ENV __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json

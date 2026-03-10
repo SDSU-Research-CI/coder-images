@@ -46,6 +46,16 @@ RUN wget https://downloads.globus.org/globus-connect-personal/linux/stable/globu
  && GLOBUS_DIR="$(find /opt -maxdepth 1 -type d -name 'globusconnectpersonal-*' | head -n 1)" \
  && ln -sfn "$GLOBUS_DIR" /opt/globusconnectpersonal
 
+# Ensure X11 socket dir has canonical ownership/mode for Xvnc.
+RUN mkdir -p /tmp/.X11-unix \
+ && chown root:root /tmp/.X11-unix \
+ && chmod 1777 /tmp/.X11-unix
+
+# Re-apply notebook-friendly permissions after root-owned installs.
+RUN fix-permissions "${CONDA_DIR}" \
+ && fix-permissions "/home/${NB_USER}" \
+ && fix-permissions /opt
+
 # Switch back to notebook user
 USER $NB_USER
 WORKDIR /home/${NB_USER}
@@ -56,3 +66,6 @@ RUN pip install jupyter-remote-desktop-proxy
 RUN pip install nbgitpuller
 
 ENV PATH=/opt/globusconnectpersonal:$PATH
+ENV LIBGL_ALWAYS_SOFTWARE=1
+ENV MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+ENV __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json

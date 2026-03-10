@@ -65,9 +65,18 @@ RUN wget "https://download.jetbrains.com/python/pycharm-$PYCHARM_VERSION.tar.gz"
  && echo -e "[Desktop Entry]\nVersion = $PYCHARM_VERSION\nType = Application\nTerminal = false\nName = PyCharm\nExec = /opt/pycharm-$PYCHARM_VERSION/bin/pycharm.sh\nIcon = /opt/pycharm-$PYCHARM_VERSION/bin/pycharm.png\nCategories = TextEditor;Development;IDE;" > /usr/share/applications/pycharm.desktop \
  && chmod +x /usr/share/applications/pycharm.desktop
 
+# Ensure X11 socket dir has canonical ownership/mode for Xvnc.
+RUN mkdir -p /tmp/.X11-unix \
+ && chown root:root /tmp/.X11-unix \
+ && chmod 1777 /tmp/.X11-unix
+
 USER ${NB_USER}
 WORKDIR /home/${NB_USER}
 
 # Install Jupyter Desktop
 RUN pip install \
     jupyter-remote-desktop-proxy
+
+ENV LIBGL_ALWAYS_SOFTWARE=1
+ENV MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+ENV __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json

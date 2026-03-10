@@ -130,6 +130,11 @@ RUN mkdir -p /opt/lammps/ \
  && cp -r /usr/share/lammps/examples /opt/lammps/ \
  && chown -R 1000:100 /opt/lammps
 
+# Ensure X11 socket dir has canonical ownership/mode for Xvnc.
+RUN mkdir -p /tmp/.X11-unix \
+ && chown root:root /tmp/.X11-unix \
+ && chmod 1777 /tmp/.X11-unix
+
 # Switch back to notebook user
 USER $NB_USER
 WORKDIR /home/${NB_USER}
@@ -147,3 +152,6 @@ RUN pip install jupyter-remote-desktop-proxy
 
 # Add QE binaries to jovyan's path
 ENV PATH=/opt/qe-7.4.1/bin:$PATH
+ENV LIBGL_ALWAYS_SOFTWARE=1
+ENV MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+ENV __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json

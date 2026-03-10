@@ -54,6 +54,11 @@ RUN wget "https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x
  && echo -e "[Desktop Entry]\nName=Visual Studio Code\nComment=Code Editing. Redefined.\nGenericName=Text Editor\nExec=/usr/share/code/code --disable-dev-shm-usage --unity-launch %F\nIcon=vscode\nType=Application\nStartupNotify=false\nStartupWMClass=Code\nCategories=TextEditor;Development;IDE;\nMimeType=text/plain;inode/directory;application/x-code-workspace;\nActions=new-empty-window;\nKeywords=vscode;\n[Desktop Action new-empty-window]\nName=New Empty Window\nExec=/usr/share/code/code --disable-dev-shm-usage --new-window %F\nIcon=vscode"\
     > /usr/share/applications/code.desktop
 
+# Ensure X11 socket dir has canonical ownership/mode for Xvnc.
+RUN mkdir -p /tmp/.X11-unix \
+ && chown root:root /tmp/.X11-unix \
+ && chmod 1777 /tmp/.X11-unix
+
 # Switch back to notebook user
 USER $NB_USER
 WORKDIR /home/${NB_USER}
@@ -81,3 +86,6 @@ RUN mamba install -y -n base \
 ENV PATH=/opt/globusconnectpersonal:$PATH
 ENV SDL_AUDIODRIVER=dummy
 ENV AUDIODEV=null
+ENV LIBGL_ALWAYS_SOFTWARE=1
+ENV MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+ENV __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
