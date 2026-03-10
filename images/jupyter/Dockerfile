@@ -12,11 +12,26 @@ RUN apt-get update && \
     git \
     jq \
     locales \
-    neovim \
     rclone \
     sudo \
+    tmux \
     vim \
  && rm -rf /var/lib/apt/lists/*
+
+RUN arch="$(dpkg --print-architecture)" && \
+    case "${arch}" in \
+      amd64) nvim_arch="x86_64" ;; \
+      arm64) nvim_arch="arm64" ;; \
+      *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/neovim/neovim-releases/releases/download/stable/nvim-linux-${nvim_arch}.tar.gz" \
+      -o /tmp/nvim-linux.tar.gz && \
+    rm -rf /opt/nvim && \
+    mkdir -p /opt && \
+    tar -xzf /tmp/nvim-linux.tar.gz -C /opt && \
+    mv "/opt/nvim-linux-${nvim_arch}" /opt/nvim && \
+    ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim && \
+    rm -f /tmp/nvim-linux.tar.gz
 
 # Generate the desired locale (en_US.UTF-8)
 RUN locale-gen en_US.UTF-8
