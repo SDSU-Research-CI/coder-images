@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: coder-desktop-auth
+type: Opaque
+stringData:
+  passwd: mypasswd
+  basic-auth-password: mypasswd
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: coder-desktop
+  labels:
+    app: coder-desktop
+spec:
+  restartPolicy: Never
+  containers:
+    - name: desktop
+      image: ghcr.io/sdsu-research-ci/coder-images/desktop:dev
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+      env:
+        - name: TZ
+          value: UTC
+        - name: DISPLAY_SIZEW
+          value: "1920"
+        - name: DISPLAY_SIZEH
+          value: "1080"
+        - name: DISPLAY_REFRESH
+          value: "60"
+        - name: DISPLAY_DPI
+          value: "96"
+        - name: DISPLAY_CDEPTH
+          value: "24"
+        - name: PASSWD
+          valueFrom:
+            secretKeyRef:
+              name: coder-desktop-auth
+              key: passwd
+        - name: SELKIES_ENCODER
+          value: nvh264enc
+        - name: SELKIES_VIDEO_BITRATE
+          value: "8000"
+        - name: SELKIES_FRAMERATE
+          value: "60"
+        - name: SELKIES_AUDIO_BITRATE
+          value: "128000"
+        - name: SELKIES_BASIC_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: coder-desktop-auth
+              key: basic-auth-password
+      resources:
+        limits:
+          nvidia.com/gpu: "1"
+      volumeMounts:
+        - name: dshm
+          mountPath: /dev/shm
+  volumes:
+    - name: dshm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-desktop
+spec:
+  selector:
+    app: coder-desktop
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  type: ClusterIP
