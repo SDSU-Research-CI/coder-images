@@ -68,7 +68,7 @@ RUN /opt/conda/bin/conda install -y -q -c manics websockify
 RUN pip install jupyter-remote-desktop-proxy
 
 # Install Gymnasium with atari and mujoco environments
-RUN pip install swig
+RUN mamba install -y -n base swig
 RUN pip install -U "gymnasium[all]" shimmy
 RUN pip install -U "autorom[accept-rom-license]"
 
