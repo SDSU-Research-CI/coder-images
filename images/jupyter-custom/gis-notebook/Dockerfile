@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/pytorch-notebook:2026-01-12
+ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/pytorch-notebook:2026-08-03
 FROM ${BASE_IMAGE}
 
 USER $NB_USER

@@ -51,15 +51,15 @@ wsl – status
 Make sure it shows
 Default Version: 2
 
-Download GROMACS 2025.1
+Download GROMACS 2026.3
 cd ~
-wget https://ftp.gromacs.org/gromacs/gromacs-2025.1.tar.gz
+wget https://ftp.gromacs.org/gromacs/gromacs-2026.3.tar.gz
 
 Extract
-tar -xvzf gromacs-2025.1.tar.gz
+tar -xvzf gromacs-2026.3.tar.gz
 
 Prepare GROMACS build folder
-cd ~/gromacs-2025.1
+cd ~/gromacs-2026.3
 mkdir build
 cd build
 

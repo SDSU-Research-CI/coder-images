@@ -1,9 +1,10 @@
-ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/r-notebook:2026-01-12
+ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/r-notebook:2026-08-03
 
 FROM ${BASE_IMAGE}
 
 ARG UBUNTU_VERSION_CODENAME=jammy
-ARG RSTUDIO_VERSION=2025.05.1-513
+ARG RSTUDIO_VERSION=2026.07.1-147
+ARG JUPYTER_RSESSION_PROXY_REF=18b09fad11eb33c0f1be9465495e01fd8268abe1
 
 USER root
 WORKDIR /opt
@@ -58,7 +59,8 @@ RUN mamba install -y -q -c manics websockify
 RUN pip install jupyter-server-proxy jupyter-remote-desktop-proxy 
 
 # Install R Session Proxy
-RUN pip install jupyter-rsession-proxy
+RUN pip install --no-cache-dir \
+    "git+https://github.com/jupyterhub/jupyter-rsession-proxy.git@${JUPYTER_RSESSION_PROXY_REF}"
 
 ENV LD_LIBRARY_PATH=/opt/conda/lib/R/lib:$LD_LIBRARY_PATH
 ENV LIBGL_ALWAYS_SOFTWARE=1

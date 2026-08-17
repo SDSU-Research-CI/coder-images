@@ -2,7 +2,7 @@
 This docker image is for use with JupyterHub in order to provide a desktop client with the Eclipse C/C++ IDE pre-installed.
 
 ## Software Included
-- Eclipse IDE for C/C++ Developers 2024-06
+- Eclipse IDE for C/C++ Developers 2026-06
 - build-essential
 - Jupyter Desktop Proxy
 - xfce desktop

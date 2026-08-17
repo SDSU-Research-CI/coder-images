@@ -1,8 +1,8 @@
-ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/scipy-notebook:2026-01-12
+ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/scipy-notebook:2026-08-03
 
 FROM ${BASE_IMAGE}
 
-ARG PYCHARM_VERSION=2025.2.0.1
+ARG PYCHARM_VERSION=2026.2
 
 # Install packages via conda (issues w/ deepvariant & pyseer)
 RUN mamba create -y -n bioenv --clone base \

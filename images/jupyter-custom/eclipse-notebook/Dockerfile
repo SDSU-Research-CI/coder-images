@@ -1,12 +1,12 @@
-ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/minimal-notebook:2026-01-12
+ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/minimal-notebook:2026-08-03
 
 FROM ${BASE_IMAGE}
 
 USER root
 WORKDIR /opt/
 
-ENV ECLIPSE_VERSION=2025-12
-ENV ECLIPSE_URL=https://ftp2.osuosl.org/pub/eclipse/technology/epp/downloads/release/2025-12/R/eclipse-cpp-2025-12-R-linux-gtk-x86_64.tar.gz
+ENV ECLIPSE_VERSION=2026-06
+ENV ECLIPSE_URL=https://ftp2.osuosl.org/pub/eclipse/technology/epp/downloads/release/2026-06/R/eclipse-cpp-2026-06-R-linux-gtk-x86_64.tar.gz
 
 # Install latest Eclipse C/C++
 RUN apt-get -y update \

@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/scipy-notebook:2026-01-12
+ARG BASE_IMAGE=ghcr.io/sdsu-research-ci/coder-images/scipy-notebook:2026-08-03
 
 # Stage 1: build GROMACS
 FROM nvidia/cuda:12.8.0-devel-ubuntu24.04 AS gromacs-builder
@@ -20,23 +20,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /opt/
 
 # Install newer CMake
-RUN wget https://github.com/Kitware/CMake/releases/download/v4.0.2/cmake-4.0.2-linux-x86_64.tar.gz \
- && tar -xvf cmake-4.0.2-linux-x86_64.tar.gz \
- && rm cmake-4.0.2-linux-x86_64.tar.gz \
- && mv cmake-4.0.2-linux-x86_64/bin/cmake /usr/bin/cmake \
- && mv cmake-4.0.2-linux-x86_64/share/cmake-4.0 /usr/share/cmake-4.0 \
- && rm -rf cmake-4.0.2-linux-x86_64/
+RUN wget https://github.com/Kitware/CMake/releases/download/v4.4.0/cmake-4.4.0-linux-x86_64.tar.gz \
+ && tar -xvf cmake-4.4.0-linux-x86_64.tar.gz \
+ && rm cmake-4.4.0-linux-x86_64.tar.gz \
+ && mv cmake-4.4.0-linux-x86_64/bin/cmake /usr/bin/cmake \
+ && mv cmake-4.4.0-linux-x86_64/share/cmake-4.4 /usr/share/cmake-4.4 \
+ && rm -rf cmake-4.4.0-linux-x86_64/
 
 ENV PATH=/usr/local/cuda-12.8/bin:$PATH
 ENV LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:$LD_LIBRARY_PATH
 
 # Download GROMACS
-RUN wget https://ftp.gromacs.org/gromacs/gromacs-2025.2.tar.gz \
- && tar xfz gromacs-2025.2.tar.gz \
- && rm gromacs-2025.2.tar.gz
+RUN wget https://ftp.gromacs.org/gromacs/gromacs-2026.3.tar.gz \
+ && tar xfz gromacs-2026.3.tar.gz \
+ && rm gromacs-2026.3.tar.gz
 
 # Install GROMACS
-RUN cd gromacs-2025.2 \
+RUN cd gromacs-2026.3 \
  && mkdir build \
  && cd build \
  && cmake .. \
@@ -70,6 +70,9 @@ RUN apt-get update -y \
     software-properties-common \
     openmpi-bin \
     libopenmpi-dev \
+    libblas-dev \
+    libfftw3-dev \
+    liblapack-dev \
     lammps \
     openkim-models \
     vim \
@@ -108,22 +111,25 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86
 COPY --from=gromacs-builder /usr/local/gromacs /usr/local/gromacs
 
 # Install Quantum Espresso
-COPY ./qe-7.4.1-ReleasePack.tar.gz /opt/
-RUN tar -xvf qe-7.4.1-ReleasePack.tar.gz \
- && rm qe-7.4.1-ReleasePack.tar.gz
+COPY ./qe-7.5-ReleasePack.tar.gz /opt/
+RUN tar -xvf qe-7.5-ReleasePack.tar.gz \
+ && rm qe-7.5-ReleasePack.tar.gz
 
-WORKDIR /opt/qe-7.4.1
+WORKDIR /opt/qe-7.5
 
 # Compile Quantum Espresso source code
 RUN ./configure \
- && make all
+ && git config --global --add safe.directory '*' \
+ && git -C external/wannier90 init \
+ && git -C external/wannier90 remote add origin https://github.com/wannier-developers/wannier90.git \
+ && make -j4 all
 
 # Set QE environment variables
 RUN sed -i 's|TMP_DIR=\$PREFIX/tempdir|TMP_DIR=/tmp|' environment_variables \
  && sed -i 's|# PARA_PREFIX="mpirun -np 4"|PARA_PREFIX="mpirun -np 4"|' environment_variables
 
 # Ensure jovyan/notebook user owns everything under the QE directory
-RUN chown -R 1000:100 /opt/qe-7.4.1
+RUN chown -R 1000:100 /opt/qe-7.5
 
 # Copy lammps examples 
 RUN mkdir -p /opt/lammps/ \
@@ -151,7 +157,7 @@ RUN mamba install -y -q -n base \
 RUN pip install jupyter-remote-desktop-proxy
 
 # Add QE binaries to jovyan's path
-ENV PATH=/opt/qe-7.4.1/bin:$PATH
+ENV PATH=/opt/qe-7.5/bin:$PATH
 ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 ENV __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
