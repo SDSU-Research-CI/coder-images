@@ -27,7 +27,11 @@ RUN mamba create -y -n bioenv --clone base \
     clustalo \
     clustalw \
     pyseer \
- && mamba install -y -c manics -n base websockify
+    sqlite \
+ && mamba install -y -c manics -n base websockify \
+ && mamba clean --all -f -y \
+ && fix-permissions "${CONDA_DIR}" \
+ && fix-permissions "/home/${NB_USER}"
 
 USER root
 
