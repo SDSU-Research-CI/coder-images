@@ -11,16 +11,20 @@ Ollama can use a GPU when scheduled on an NVIDIA node.
 - GitHub Copilot CLI (`copilot`)
 - Node.js 22 (for the CLIs above)
 - Jupyter Desktop (XFCE over VNC)
-- VS Code (desktop) and Code Server (browser)
+- VS Code (desktop), Cursor (desktop), and Code Server (browser)
 - Google Chrome
 - Mozilla Firefox
 - nb-venv-kernels (discover venv/uv project envs as Jupyter kernels; supersedes nb_conda_kernels)
+- JupyterLab extensions: jupyter-ai (AI chat/magics, incl. Ollama), jupyter-collaboration +
+  jupyterlab-chat (realtime co-editing), jupyter-lsp, jupyterlab-code-formatter, jupyterlab-git
 - rclone, tmux, vim, neovim, uv, nb_conda_kernels (inherited from base)
 
-> Note: Chrome and desktop VS Code are Chromium/Electron based and are launched with
-> `--no-sandbox` (baked into the XFCE `.desktop` launchers and `google-chrome`/`code`
-> terminal wrappers) because the container's seccomp policy blocks unprivileged user
-> namespaces. Firefox and code-server do not need this.
+> Note: Chrome, VS Code, and Cursor are Chromium/Electron based and are launched with
+> `--no-sandbox` (baked into the XFCE `.desktop` launchers and the `google-chrome`/`code`/`cursor`
+> terminal wrappers) because the container's seccomp policy blocks unprivileged user namespaces.
+> Firefox hits the same restriction but has no `--no-sandbox` flag, so its internal content-process
+> sandbox is disabled via `MOZ_DISABLE_CONTENT_SANDBOX=1` (et al.) in the `firefox` wrapper and
+> `.desktop` launcher; the container provides isolation instead. code-server is unaffected.
 
 ### Preinstalled VS Code extensions
 Desktop VS Code: Claude Code (`Anthropic.claude-code`), Codex (`openai.chatgpt`),

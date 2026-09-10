@@ -81,7 +81,9 @@ docker build . \
 `images/jupyter-custom/vibe-coding-notebook/Dockerfile` builds on the repackaged
 `pytorch-notebook` (CUDA 12) image so Ollama can use a GPU at runtime. It adds
 the OpenCode, Claude Code, Codex, and GitHub Copilot CLIs, plus a desktop
-(XFCE/VNC) with VS Code, Google Chrome, and Firefox.
+(XFCE/VNC) with VS Code, Cursor, Google Chrome, and Firefox, and JupyterLab
+AI/collaboration extensions (jupyter-ai, jupyter-collaboration, jupyterlab-chat,
+jupyterlab-lsp, jupyterlab-code-formatter, jupyterlab-git).
 
 ```bash
 docker build . \
