@@ -91,3 +91,62 @@ docker build . \
   -f images/jupyter-custom/vibe-coding-notebook/Dockerfile \
   -t ghcr.io/sdsu-research-ci/coder-images/vibe-coding-notebook:dev
 ```
+
+## Desktop Image (Selkies)
+
+`images/desktop/Dockerfile` repackages the Selkies KDE Plasma remote desktop
+(`ghcr.io/selkies-project/selkies-glx-desktop`, Ubuntu 26.04, X11, NVIDIA-GLX)
+for Coder. It renames the base `ubuntu` session account to `coder` (preserving
+uid/gid and all supplementary groups), then installs Miniforge (conda/mamba),
+`uv`, and CLI tools (neovim, rclone, tmux). The desktop streams from a single
+HTTPS/HTTP port (default `8080`); see `images/desktop/pod.yaml` for an example
+Kubernetes manifest.
+
+Base image selection, tags, and env vars are documented at
+[docs.selkies.io](https://docs.selkies.io/). Bump `BASE_IMAGE` (or the
+`selkies_tag` CI input) deliberately and re-verify the `ubuntu`→`coder` rename
+and streaming on a CUDA node.
+
+### Local Build
+
+Requires a GPU node; the X11/GLX base cannot stream on a GPU-less host.
+
+```bash
+docker build . \
+  --platform linux/amd64 \
+  -f images/desktop/Dockerfile \
+  -t ghcr.io/sdsu-research-ci/coder-images/desktop:dev
+```
+
+### GitHub Actions
+
+`Build Selkies Desktop Coder Image` (`.github/workflows/build-desktop.yml`)
+takes a `selkies_tag` input (default `26.04`) and pushes
+`ghcr.io/<org>/<repo>/desktop:{latest,<selkies_tag>}`. Trigger with:
+
+```bash
+gh workflow run build-desktop.yml -f selkies_tag=26.04
+```
+
+### Quick Smoke Test
+
+```bash
+docker run --rm -it -p 8080:8080 --shm-size=2g --gpus 1 \
+  -e PASSWD=mypasswd -e SELKIES_ENABLE_HTTPS=false \
+  -e SELKIES_ENABLE_BASIC_AUTH=false \
+  ghcr.io/sdsu-research-ci/coder-images/desktop:dev
+# Open http://localhost:8080  (no login when basic auth is off)
+```
+
+### Access & authentication
+
+Do **not** enable Selkies HTTP Basic auth (`SELKIES_ENABLE_BASIC_AUTH`, on by
+default) when clients are browsers. A browser loads the page with a cached Basic
+credential, but it does **not** attach that `Authorization` header to the
+streaming WebSocket handshake (`/api/websockets`), so the server replies `401`,
+the socket closes, and the desktop drops right after it opens. In this repo the
+image is meant to sit behind Coder's `coder_app` proxy (or an Ingress) that
+authenticates the user, so Selkies's own login is redundant — set
+`SELKIES_ENABLE_BASIC_AUTH=false` and let the proxy authorize. If you must
+protect a directly-exposed instance, use Selkies [Secure Mode](https://docs.selkies.io/latest/secure-mode)
+(`SELKIES_MASTER_TOKEN`, passed as `?token=`) instead of Basic auth.

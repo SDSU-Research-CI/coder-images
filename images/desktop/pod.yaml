@@ -10,7 +10,6 @@ metadata:
 type: Opaque
 stringData:
   passwd: mypasswd
-  basic-auth-password: mypasswd
 ---
 apiVersion: v1
 kind: Pod
@@ -22,7 +21,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: desktop
-      image: ghcr.io/sdsu-research-ci/coder-images/desktop:dev
+      image: ghcr.io/sdsu-research-ci/coder-images/desktop:2026-09-dev-v0.0.1
       imagePullPolicy: IfNotPresent
       ports:
         - containerPort: 8080
@@ -32,21 +31,23 @@ spec:
         - name: TZ
           value: UTC
         # The account is renamed ubuntu -> coder in the image (see Dockerfile).
-        # Set the web login explicitly so it does not fall back to "ubuntu".
+        # `USER` still feeds the base entrypoint's `chpasswd` target.
         - name: USER
-          value: coder
-        - name: SELKIES_BASIC_AUTH_USER
           value: coder
         - name: PASSWD
           valueFrom:
             secretKeyRef:
               name: coder-desktop-auth
               key: passwd
-        - name: SELKIES_BASIC_AUTH_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: coder-desktop-auth
-              key: basic-auth-password
+        # IMPORTANT: do NOT enable Selkies HTTP Basic auth for browser clients.
+        # Browsers do not attach cached Basic credentials to WebSocket handshakes
+        # (and Coder's workspace proxy cannot inject an Authorization header it
+        # never received either), so the streaming WS to /api/websockets returns
+        # 401 and the desktop closes right after the page loads. In this topology
+        # access control is Coder's job (coder_app share = owner/authenticated)
+        # or an Ingress in front of the Service; Selkies must not layer its own.
+        - name: SELKIES_ENABLE_BASIC_AUTH
+          value: "false"
         # Selkies serves HTTPS by default on a self-signed cert. The Service in
         # front of this pod is plain HTTP; terminate TLS upstream (or flip this
         # to "true" and mount a real cert via SELKIES_HTTPS_CERT/SELKIES_HTTPS_KEY).
@@ -54,10 +55,6 @@ spec:
           value: "false"
         - name: SELKIES_MODE
           value: websockets
-        # Lock the NVENC H.264 encoder. On a non-NVIDIA node remove this and let
-        # the encoder be chosen from the web dashboard.
-        - name: SELKIES_ENCODER
-          value: nvh264enc
         # X server initial mode. Dynamic resizing is on by default, so these are
         # only the boot geometry; the client's size wins once connected.
         - name: DISPLAY_SIZEW
@@ -71,12 +68,24 @@ spec:
         # NVIDIA video port to report a monitor on; keeps RandR outputs alive.
         - name: VIDEO_PORT
           value: DFP
-        # NOTE: video/audio bitrate, frame rate and UI scaling are now chosen
-        # from the web dashboard, not the environment (Selkies v2), so the old
-        # SELKIES_VIDEO_BITRATE / SELKIES_FRAMERATE / SELKIES_AUDIO_BITRATE vars
-        # were removed here.
+        # NOTE: Selkies v2 encoder names are `h264enc` (default, NVENC/VA-API with
+        # software fallback), `h264enc-striped`, and `jpeg`. The old `nvh264enc`
+        # is no longer valid and would just log a warning and fall back to h264enc,
+        # so we omit it. Encoder / bitrate / framerate / DPI are chosen per-client
+        # from the web dashboard.
+        # Hardening option (Secure Mode): set SELKIES_MASTER_TOKEN here and pass
+        # it as ?token=... from the Coder app URL; see docs.selkies.io/latest/secure-mode.
       resources:
+        # Override the namespace LimitRange defaults (which cap this container at
+        # cpu=100m / memory=1Gi). 100m throttles kwin + the X server + Selkies
+        # capture/encode hard enough to make the desktop feel laggy. Give it real
+        # CPU; memory request also lets the scheduler place it on a node with room.
+        requests:
+          cpu: "2"
+          memory: 4Gi
         limits:
+          cpu: "6"
+          memory: 12Gi
           nvidia.com/gpu: "1"
       volumeMounts:
         - name: home
