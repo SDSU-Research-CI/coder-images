@@ -1,3 +1,8 @@
+# Example Kubernetes manifest for the Selkies GLX desktop image.
+# Requires an NVIDIA GPU node with the NVIDIA device plugin, and the NVIDIA
+# container toolkit configured so NVENC + GLX reach the container.
+# NOTE: This base is X11-only (no Wayland) and NVIDIA-GLX. For non-NVIDIA GPUs
+# or GPU sharing, build on ghcr.io/selkies-project/selkies-egl-desktop instead.
 apiVersion: v1
 kind: Secret
 metadata:
@@ -26,45 +31,66 @@ spec:
       env:
         - name: TZ
           value: UTC
+        # The account is renamed ubuntu -> coder in the image (see Dockerfile).
+        # Set the web login explicitly so it does not fall back to "ubuntu".
+        - name: USER
+          value: coder
+        - name: SELKIES_BASIC_AUTH_USER
+          value: coder
+        - name: PASSWD
+          valueFrom:
+            secretKeyRef:
+              name: coder-desktop-auth
+              key: passwd
+        - name: SELKIES_BASIC_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: coder-desktop-auth
+              key: basic-auth-password
+        # Selkies serves HTTPS by default on a self-signed cert. The Service in
+        # front of this pod is plain HTTP; terminate TLS upstream (or flip this
+        # to "true" and mount a real cert via SELKIES_HTTPS_CERT/SELKIES_HTTPS_KEY).
+        - name: SELKIES_ENABLE_HTTPS
+          value: "false"
+        - name: SELKIES_MODE
+          value: websockets
+        # Lock the NVENC H.264 encoder. On a non-NVIDIA node remove this and let
+        # the encoder be chosen from the web dashboard.
+        - name: SELKIES_ENCODER
+          value: nvh264enc
+        # X server initial mode. Dynamic resizing is on by default, so these are
+        # only the boot geometry; the client's size wins once connected.
         - name: DISPLAY_SIZEW
           value: "1920"
         - name: DISPLAY_SIZEH
           value: "1080"
         - name: DISPLAY_REFRESH
           value: "60"
-        - name: DISPLAY_DPI
-          value: "96"
         - name: DISPLAY_CDEPTH
           value: "24"
-        - name: PASSWD
-          valueFrom:
-            secretKeyRef:
-              name: coder-desktop-auth
-              key: passwd
-        - name: SELKIES_ENCODER
-          value: nvh264enc
-        - name: SELKIES_VIDEO_BITRATE
-          value: "8000"
-        - name: SELKIES_FRAMERATE
-          value: "60"
-        - name: SELKIES_AUDIO_BITRATE
-          value: "128000"
-        - name: SELKIES_BASIC_AUTH_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: coder-desktop-auth
-              key: basic-auth-password
+        # NVIDIA video port to report a monitor on; keeps RandR outputs alive.
+        - name: VIDEO_PORT
+          value: DFP
+        # NOTE: video/audio bitrate, frame rate and UI scaling are now chosen
+        # from the web dashboard, not the environment (Selkies v2), so the old
+        # SELKIES_VIDEO_BITRATE / SELKIES_FRAMERATE / SELKIES_AUDIO_BITRATE vars
+        # were removed here.
       resources:
         limits:
           nvidia.com/gpu: "1"
       volumeMounts:
+        - name: home
+          mountPath: /home/coder
         - name: dshm
           mountPath: /dev/shm
   volumes:
+    # Persist the session user's home (KDE settings, proot-apps, Steam/Wine).
+    - name: home
+      emptyDir: {}
     - name: dshm
       emptyDir:
         medium: Memory
-        sizeLimit: 1Gi
+        sizeLimit: 2Gi
 ---
 apiVersion: v1
 kind: Service
