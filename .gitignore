@@ -1,3 +1,6 @@
 debug-custom-actions.sh
 
 qe-7.4.1-ReleasePack.tar.gz
+
+__pycache__/
+*.py[cod]

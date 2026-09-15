@@ -62,7 +62,13 @@ RUN pip install jupyter-server-proxy jupyter-remote-desktop-proxy
 RUN pip install --no-cache-dir \
     "git+https://github.com/jupyterhub/jupyter-rsession-proxy.git@${JUPYTER_RSESSION_PROXY_REF}"
 
-ENV LD_LIBRARY_PATH=/opt/conda/lib/R/lib:$LD_LIBRARY_PATH
+# Discover conda environments containing R at Jupyter startup and register each
+# as an RStudio launcher tile (via jupyter-rsession-proxy), launched inside the
+# environment so its libraries/activate.d apply. Self-contained server config.
+USER root
+COPY images/jupyter-custom/rstudio-desktop-notebook/rstudio_conda_proxy.py /usr/local/etc/jupyter/jupyter_server_config.py
+USER ${NB_USER}
+
 ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 ENV __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
