@@ -277,6 +277,38 @@ RUN printf '#!/bin/sh\nexport WEBKIT_FORCE_SANDBOX=0\nexport WEBKIT_DISABLE_DMAB
         /usr/share/applications/github-copilot.desktop \
  && (update-desktop-database /usr/share/applications || true)
 
+# Install the OpenCode desktop app (Linux GUI). The stable download link
+# (https://opencode.ai/download/stable/linux-x64-deb) always serves the newest
+# opencode-desktop-linux-amd64.deb and there is no versioned URL, so the image build is
+# the pin. Every Depends (libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6,
+# libatspi2.0-0, libuuid1, libsecret-1-0, xdg-utils) is already installed by the desktop
+# layer above, so --no-install-recommends adds no packages, only the ~446 MB payload.
+# Its postinst registers the app in update-alternatives and the desktop database; it installs
+# no `opencode` binary, so the npm CLI already provided by this image is untouched.
+RUN curl -fL "https://opencode.ai/download/stable/linux-x64-deb" -o /opt/opencode-desktop.deb \
+ && apt-get -y update \
+ && apt-get install -y --no-install-recommends /opt/opencode-desktop.deb \
+ && rm -f /opt/opencode-desktop.deb \
+ && apt clean \
+ && rm -rf /var/lib/apt/lists/*
+
+# OpenCode desktop is Electron (Chromium 140 / Electron 42), so it needs --no-sandbox like
+# Chrome/VS Code/Cursor. The package ships the binary as /opt/OpenCode/ai.opencode.desktop
+# and registers it in update-alternatives as /usr/bin/ai.opencode.desktop, but installs no
+# `opencode` launcher, so it cannot shadow the npm CLI. Add an `opencode-desktop` wrapper and
+# point both .desktop files and the alternatives group at it (higher priority) so every way of
+# starting the GUI gets --no-sandbox; the raw alternative aborts with "Failed to move to new
+# namespace" under the container's seccomp policy even though the .deb ships its own setuid
+# chrome-sandbox.
+RUN printf '#!/bin/sh\nexec /opt/OpenCode/ai.opencode.desktop --no-sandbox --disable-dev-shm-usage "$@"\n' > /usr/local/bin/opencode-desktop \
+ && chmod +x /usr/local/bin/opencode-desktop \
+ && for f in /usr/share/applications/ai.opencode.desktop.desktop /usr/share/applications/opencode-desktop.desktop; do \
+      [ -e "$f" ] && sed -i 's#^Exec=/opt/OpenCode/ai.opencode.desktop#Exec=/usr/local/bin/opencode-desktop#' "$f"; \
+    done \
+ && update-alternatives --install /usr/bin/ai.opencode.desktop ai.opencode.desktop /usr/local/bin/opencode-desktop 200 \
+ && update-alternatives --set ai.opencode.desktop /usr/local/bin/opencode-desktop \
+ && (update-desktop-database /usr/share/applications || true)
+
 # Make Firefox the default browser. Chrome's .deb registers itself as the default in
 # update-alternatives (x-www-browser / gnome-www-browser), and with no MIME defaults on
 # the system xdg-open/xdg-settings fall back to that, so links (and the Copilot app's

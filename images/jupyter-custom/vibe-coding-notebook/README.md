@@ -13,6 +13,7 @@ Ollama can use a GPU when scheduled on an NVIDIA node.
 - Jupyter Desktop (XFCE over VNC)
 - VS Code (desktop), Cursor (desktop), and Code Server (browser)
 - GitHub Copilot desktop app (GUI; launcher `github-copilot`, XFCE menu entry "GitHub Copilot")
+- OpenCode desktop app (GUI; launcher `opencode-desktop`, XFCE menu entry "OpenCode")
 - Google Chrome
 - Mozilla Firefox (**default browser** — see [Default browser](#default-browser))
 - nb-venv-kernels (discover venv/uv project envs as Jupyter kernels; supersedes nb_conda_kernels)
@@ -20,9 +21,10 @@ Ollama can use a GPU when scheduled on an NVIDIA node.
   jupyterlab-chat (realtime co-editing), jupyter-lsp, jupyterlab-code-formatter, jupyterlab-git
 - rclone, tmux, vim, neovim, uv, nb_conda_kernels (inherited from base)
 
-> Note: Chrome, VS Code, and Cursor are Chromium/Electron based and are launched with
-> `--no-sandbox` (baked into the XFCE `.desktop` launchers and the `google-chrome`/`code`/`cursor`
-> terminal wrappers) because the container's seccomp policy blocks unprivileged user namespaces.
+> Note: Chrome, VS Code, Cursor, and the OpenCode desktop app are Chromium/Electron based and
+> are launched with `--no-sandbox` (baked into the XFCE `.desktop` launchers and the
+> `google-chrome`/`code`/`cursor`/`opencode-desktop` terminal wrappers) because the container's
+> seccomp policy blocks unprivileged user namespaces.
 > Firefox hits the same restriction but has no `--no-sandbox` flag, so its internal content-process
 > sandbox is disabled via `MOZ_DISABLE_CONTENT_SANDBOX=1` (et al.) in the `firefox` wrapper and
 > `.desktop` launcher; the container provides isolation instead. code-server is unaffected.
@@ -49,6 +51,9 @@ code-server because Microsoft does not permit it on non-Microsoft VS Code builds
     (`opencode` -> `/connect`)
   - GitHub Copilot desktop app: sign in from its welcome screen; the device flow opens
     Chrome/Firefox inside the desktop
+  - OpenCode desktop app: it uses the same XDG config (`~/.config/opencode`) and data
+    (`~/.local/share/opencode`) directories as the `opencode` CLI, so provider credentials
+    and sessions are shared between the two
 - **GPU is a runtime property, not an image property.** Ollama only sees the GPU
   when the container runs with the NVIDIA container runtime (e.g. `--gpus all`).
   Otherwise it falls back to CPU. Models download to `~/.ollama` by default.
@@ -75,6 +80,33 @@ code-server because Microsoft does not permit it on non-Microsoft VS Code builds
   `xdg-document-portal` (no `/dev/fuse` in the container) and ALSA/JACK messages (no sound
   device). Neither affects the desktop.
 
+### OpenCode desktop app
+- Installed from the official Linux `.deb` (`opencode` package, ~446 MB installed), downloaded
+  from [opencode.ai/download/stable/linux-x64-deb](https://opencode.ai/download/stable/linux-x64-deb).
+  That link always serves the newest stable build and there is no versioned URL, so the image
+  build is the pin (the installed version shows in `dpkg -l opencode`).
+- Every dependency the package declares is already installed by the desktop layer, so adding the
+  app costs exactly one Debian package and its payload — no new libraries.
+- **It does not replace the CLI.** The `.deb` installs its binary as `/opt/OpenCode/ai.opencode.desktop`
+  (also registered as `/usr/bin/ai.opencode.desktop` via `update-alternatives`) and never touches
+  `/usr/bin/opencode`, which keeps resolving to the npm `opencode-ai` CLI.
+- Launch it from the XFCE menu (Development) once the Jupyter Desktop session is up, or from a
+  desktop terminal with `opencode-desktop &`. It is Electron, so it needs `--no-sandbox` like
+  Chrome/VS Code/Cursor; the `opencode-desktop` wrapper supplies it, and the image repoints the
+  `ai.opencode.desktop` alternative at the wrapper (priority 200) so that name works too.
+- The GUI shares the CLI's XDG directories — config in `~/.config/opencode`, data in
+  `~/.local/share/opencode` (`opencode.db`, `log/`, `repos/`, and the credential store) — and
+  keeps its own Chromium profile in `~/.config/ai.opencode.desktop` (window state, cookies,
+  `drafts.sqlite`). All three live under `$HOME`, so settings and sign-in persist with the
+  home volume.
+- Its built-in updater (`app-update.yml`, `~/.config/ai.opencode.desktop/opencode.updater`)
+  cannot write to the root-owned `/opt/OpenCode` install, so treat the image as the update
+  mechanism: rebuild to pick up a new stable release.
+- The visible launcher (`Name=OpenCode`, `Categories=Development`) owns `x-scheme-handler/opencode`,
+  so `opencode://` callbacks route back to the GUI, while its outbound links use the default
+  browser, Firefox (see [Default browser](#default-browser)). The package also ships a
+  `NoDisplay=true` duplicate entry, left in place.
+
 ### Default browser
 Firefox is the default. Chrome's `.deb` registers itself in `update-alternatives`, so
 without this the desktop, `xdg-open` and the Copilot app's OAuth sign-in handoff all
@@ -95,16 +127,19 @@ To change the default at runtime, use the XFCE *Preferred Applications* dialog (
 The image bundles several complete desktop applications on top of a CUDA PyTorch stack,
 so it is big by design. Note that `docker images` reports the **sum of uncompressed layer
 tars**, which overstates the files actually present (a file rewritten by a later layer is
-counted in both). Measured on `2026-08-03-dev-v0.0.5`:
+counted in both). Measured on the current dev tag:
 
-| measure | before (v0.0.3) | now (v0.0.5) |
-|---|---|---|
-| `docker images` SIZE (uncompressed layers) | 40.8 GB | **33.8 GB** |
-| `du -xsh /` inside a running container (real content) | 23 GB | **20 GB** |
-| `docker save \| wc -c` (what a push/pull transfers) | 13.36 GB | **10.75 GB** |
-| installed Debian packages | 1168 | 880 |
+| measure | v0.0.3 (before) | v0.0.5 (optimized) | v0.0.6 (+ OpenCode GUI) |
+|---|---|---|---|
+| `docker images` SIZE (uncompressed layers) | 40.8 GB | 33.8 GB | **34.4 GB** |
+| `du -xsh /` inside a running container (real content) | 23 GB | 20 GB | **21 GB** |
+| `docker save` (what a push/pull transfers) | 13.36 GB | 10.01 GB | **10.16 GB** |
+| installed Debian packages | 1168 | 880 | **881** |
 
-Where the 20 GB of content lives:
+The OpenCode desktop app costs +0.6 GB of layer data, +150 MB of transfer and exactly one
+package (all of its dependencies were already installed).
+
+Where the 21 GB of content lives:
 
 | path | size | what |
 |---|---|---|
@@ -114,6 +149,7 @@ Where the 20 GB of content lives:
 | `/usr/share/code` | 1.0 GB | VS Code |
 | `/usr/share/cursor` | 0.9 GB | Cursor |
 | `/opt/code-server` | 0.7 GB | code-server |
+| `/opt/OpenCode` | 0.45 GB | OpenCode desktop app |
 | `/opt/google` | 0.44 GB | Google Chrome |
 | `/usr/lib/firefox` | 0.32 GB | Firefox |
 
@@ -150,9 +186,9 @@ printing from the desktop), and Chrome or Cursor (~0.4–0.9 GB each) if only on
 ## Build
 Build locally (custom images are not built in GitHub Actions). Local builds are tagged
 `<jupyter_tag>-dev-vX.Y.Z`; bump the patch number for each new one
-(current: `2026-08-03-dev-v0.0.5`, which adds the GitHub Copilot desktop app, makes
-Firefox the default browser, and trims ~7 GB of layer bloat — see
-[Image size](#image-size)).
+(current: `2026-08-03-dev-v0.0.6`, which adds the OpenCode desktop app on top of the
+GitHub Copilot desktop app, the Firefox default-browser change, and the ~7 GB of layer
+bloat removed — see [Image size](#image-size)).
 
 ```bash
 docker build . \
