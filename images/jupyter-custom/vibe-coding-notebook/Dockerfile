@@ -168,6 +168,38 @@ RUN printf '#!/bin/sh\nexec /usr/bin/cursor --no-sandbox --disable-dev-shm-usage
     done
 USER ${NB_USER}
 
+# Install the GitHub Copilot desktop app (Linux GUI). The public download link
+# (https://gh.io/copilot-app-linux) serves an AppImage, which needs FUSE to mount and so
+# cannot run in these containers; the same release publishes an .deb with the identical
+# payload, so install that instead. COPILOT_APP_REF=latest tracks the newest release;
+# set it to a tag (e.g. v1.1.21) to pin. xdg-utils is pulled in for the app's browser
+# handoff during sign-in (xdg-open -> Chrome/Firefox).
+USER root
+ARG COPILOT_APP_REF=latest
+RUN curl -fL "https://github.com/github/app/releases/${COPILOT_APP_REF}/download/GitHub-Copilot-linux-x64.deb" \
+      -o /opt/github-copilot.deb \
+ && apt-get -y update \
+ && apt-get install -y xdg-utils /opt/github-copilot.deb \
+ && rm -f /opt/github-copilot.deb \
+ && rm -rf /var/lib/apt/lists/*
+
+# The .deb installs the app as /usr/bin/github (package name `github`) plus a
+# "GitHub Copilot.desktop" launcher whose Categories= is empty, so XFCE never shows it.
+# Rename the launcher, give it a category, and point it at a wrapper that turns off the
+# WebKitGTK features that need privileges or a GPU this container doesn't have: the
+# bubblewrap web-process sandbox (same unprivileged-userns restriction that forces
+# --no-sandbox on Chrome/VS Code) and the DMABUF/GBM renderer (Xvnc has no DRI, Mesa
+# falls back to llvmpipe). Being Tauri/WebKitGTK rather than Electron, the app itself
+# takes no --no-sandbox flag.
+RUN printf '#!/bin/sh\nexport WEBKIT_FORCE_SANDBOX=0\nexport WEBKIT_DISABLE_DMABUF_RENDERER=1\nexport WEBKIT_DISABLE_COMPOSITING_MODE=1\nexport GDK_BACKEND=x11\nexec /usr/bin/github "$@"\n' > /usr/local/bin/github-copilot \
+ && chmod +x /usr/local/bin/github-copilot \
+ && mv "/usr/share/applications/GitHub Copilot.desktop" /usr/share/applications/github-copilot.desktop \
+ && sed -i -e 's#^Exec=.*#Exec=/usr/local/bin/github-copilot %u#' \
+           -e 's#^Categories=.*#Categories=Development;Utility;#' \
+        /usr/share/applications/github-copilot.desktop \
+ && (update-desktop-database /usr/share/applications || true)
+USER ${NB_USER}
+
 # JupyterLab AI + collaboration + coding ergonomics. Single pip transaction so the
 # resolver reconciles their overlapping JupyterLab/ydoc pins. jupyterlab-lsp is the
 # Lab frontend (jupyter-lsp alone is only the server side); python-lsp-server provides
