@@ -76,7 +76,9 @@ code-server because Microsoft does not permit it on non-Microsoft VS Code builds
   device). Neither affects the desktop.
 
 ## Build
-Build locally (custom images are not built in GitHub Actions):
+Build locally (custom images are not built in GitHub Actions). Local builds are tagged
+`<jupyter_tag>-dev-vX.Y.Z`; bump the patch number for each new one
+(current: `2026-08-03-dev-v0.0.3`, which adds the GitHub Copilot desktop app).
 
 ```bash
 docker build . \
