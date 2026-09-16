@@ -219,27 +219,16 @@ RUN sed -i 's#^Exec=/usr/bin/google-chrome-stable#Exec=/usr/bin/google-chrome-st
  && chmod 4755 /opt/google/chrome/chrome-sandbox /usr/share/code/chrome-sandbox
 USER ${NB_USER}
 
-# Install Cursor (VS Code fork; official Linux .deb). Electron-based, so it needs the
-# same --no-sandbox treatment as Chrome/VS Code (see block above).
+# Firefox's content-process sandbox fails under the container seccomp policy too, but Firefox
+# has no --no-sandbox flag; it is disabled via MOZ_DISABLE_*_SANDBOX env vars (the container
+# provides isolation instead).
+#
+# NOTE: Cursor was removed here (dev-v0.0.7). Its support for custom model endpoints is gated
+# behind a paid subscription, which does not fit a teaching image where students bring their
+# own API keys; VS Code (desktop + code-server) and the CLI agents cover the same workflows.
 USER root
-ARG CURSOR_VERSION=3.19
-RUN curl -fL "https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/${CURSOR_VERSION}" \
-      -o /opt/cursor.deb \
- && apt-get -y update \
- && apt-get install -y /opt/cursor.deb \
- && rm -f /opt/cursor.deb \
- && apt clean \
- && rm -rf /var/lib/apt/lists/*
-
-# Cursor is Chromium/Electron (needs --no-sandbox). Firefox's content-process sandbox
-# fails under the container seccomp policy too, but Firefox has no --no-sandbox flag; it
-# is disabled via MOZ_DISABLE_*_SANDBOX env vars (the container provides isolation instead).
-RUN printf '#!/bin/sh\nexec /usr/bin/cursor --no-sandbox --disable-dev-shm-usage "$@"\n' > /usr/local/bin/cursor \
- && printf '#!/bin/sh\nexport MOZ_DISABLE_CONTENT_SANDBOX=1\nexport MOZ_DISABLE_GPU_SANDBOX=1\nexport MOZ_DISABLE_RDD_SANDBOX=1\nexport MOZ_DISABLE_GMP_SANDBOX=1\nexec /usr/bin/firefox "$@"\n' > /usr/local/bin/firefox \
- && chmod +x /usr/local/bin/cursor /usr/local/bin/firefox \
- && for f in /usr/share/applications/*[Cc]ursor*.desktop; do \
-      [ -e "$f" ] && sed -i -E 's#^(Exec=[^ ]+)#\1 --no-sandbox --disable-dev-shm-usage#' "$f"; \
-    done \
+RUN printf '#!/bin/sh\nexport MOZ_DISABLE_CONTENT_SANDBOX=1\nexport MOZ_DISABLE_GPU_SANDBOX=1\nexport MOZ_DISABLE_RDD_SANDBOX=1\nexport MOZ_DISABLE_GMP_SANDBOX=1\nexec /usr/bin/firefox "$@"\n' > /usr/local/bin/firefox \
+ && chmod +x /usr/local/bin/firefox \
  && for f in /usr/share/applications/*[Ff]irefox*.desktop; do \
       [ -e "$f" ] && sed -i -E 's#^Exec=#Exec=env MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1 MOZ_DISABLE_RDD_SANDBOX=1 MOZ_DISABLE_GMP_SANDBOX=1 #' "$f"; \
     done
@@ -293,7 +282,7 @@ RUN curl -fL "https://opencode.ai/download/stable/linux-x64-deb" -o /opt/opencod
  && rm -rf /var/lib/apt/lists/*
 
 # OpenCode desktop is Electron (Chromium 140 / Electron 42), so it needs --no-sandbox like
-# Chrome/VS Code/Cursor. The package ships the binary as /opt/OpenCode/ai.opencode.desktop
+# Chrome/VS Code. The package ships the binary as /opt/OpenCode/ai.opencode.desktop
 # and registers it in update-alternatives as /usr/bin/ai.opencode.desktop, but installs no
 # `opencode` launcher, so it cannot shadow the npm CLI. Add an `opencode-desktop` wrapper and
 # point both .desktop files and the alternatives group at it (higher priority) so every way of

@@ -11,7 +11,7 @@ Ollama can use a GPU when scheduled on an NVIDIA node.
 - GitHub Copilot CLI (`copilot`)
 - Node.js 22 (for the CLIs above)
 - Jupyter Desktop (XFCE over VNC)
-- VS Code (desktop), Cursor (desktop), and Code Server (browser)
+- VS Code (desktop) and Code Server (browser)
 - GitHub Copilot desktop app (GUI; launcher `github-copilot`, XFCE menu entry "GitHub Copilot")
 - OpenCode desktop app (GUI; launcher `opencode-desktop`, XFCE menu entry "OpenCode")
 - Google Chrome
@@ -21,10 +21,10 @@ Ollama can use a GPU when scheduled on an NVIDIA node.
   jupyterlab-chat (realtime co-editing), jupyter-lsp, jupyterlab-code-formatter, jupyterlab-git
 - rclone, tmux, vim, neovim, uv, nb_conda_kernels (inherited from base)
 
-> Note: Chrome, VS Code, Cursor, and the OpenCode desktop app are Chromium/Electron based and
-> are launched with `--no-sandbox` (baked into the XFCE `.desktop` launchers and the
-> `google-chrome`/`code`/`cursor`/`opencode-desktop` terminal wrappers) because the container's
-> seccomp policy blocks unprivileged user namespaces.
+> Note: Chrome, VS Code, and the OpenCode desktop app are Chromium/Electron based and are
+> launched with `--no-sandbox` (baked into the XFCE `.desktop` launchers and the
+> `google-chrome`/`code`/`opencode-desktop` terminal wrappers) because the container's seccomp
+> policy blocks unprivileged user namespaces.
 > Firefox hits the same restriction but has no `--no-sandbox` flag, so its internal content-process
 > sandbox is disabled via `MOZ_DISABLE_CONTENT_SANDBOX=1` (et al.) in the `firefox` wrapper and
 > `.desktop` launcher; the container provides isolation instead. code-server is unaffected.
@@ -33,6 +33,14 @@ Ollama can use a GPU when scheduled on an NVIDIA node.
 > flag. Its WebKit web-process sandbox (bubblewrap) and DMABUF renderer hit the same seccomp and
 > no-GPU restrictions, so the `github-copilot` wrapper exports `WEBKIT_FORCE_SANDBOX=0`,
 > `WEBKIT_DISABLE_DMABUF_RENDERER=1` and `WEBKIT_DISABLE_COMPOSITING_MODE=1` instead.
+
+### Not included: Cursor
+Cursor was installed here up through `dev-v0.0.6` and removed in `dev-v0.0.7`. Pointing it at
+your own model endpoint — an OpenAI account with the student's own API key, for instance —
+requires a paid subscription, which is the wrong shape for a course image: students should pay
+their model provider, not a client that fronts it. VS Code (desktop and code-server), the
+OpenCode / Claude Code / Codex / Copilot CLIs, and the OpenCode desktop app cover the same
+workflows without that restriction.
 
 ### Preinstalled VS Code extensions
 Desktop VS Code: Claude Code (`Anthropic.claude-code`), Codex (`openai.chatgpt`),
@@ -92,7 +100,7 @@ code-server because Microsoft does not permit it on non-Microsoft VS Code builds
   `/usr/bin/opencode`, which keeps resolving to the npm `opencode-ai` CLI.
 - Launch it from the XFCE menu (Development) once the Jupyter Desktop session is up, or from a
   desktop terminal with `opencode-desktop &`. It is Electron, so it needs `--no-sandbox` like
-  Chrome/VS Code/Cursor; the `opencode-desktop` wrapper supplies it, and the image repoints the
+  Chrome/VS Code; the `opencode-desktop` wrapper supplies it, and the image repoints the
   `ai.opencode.desktop` alternative at the wrapper (priority 200) so that name works too.
 - The GUI shares the CLI's XDG directories — config in `~/.config/opencode`, data in
   `~/.local/share/opencode` (`opencode.db`, `log/`, `repos/`, and the credential store) — and
@@ -129,17 +137,19 @@ so it is big by design. Note that `docker images` reports the **sum of uncompres
 tars**, which overstates the files actually present (a file rewritten by a later layer is
 counted in both). Measured on the current dev tag:
 
-| measure | v0.0.3 (before) | v0.0.5 (optimized) | v0.0.6 (+ OpenCode GUI) |
-|---|---|---|---|
-| `docker images` SIZE (uncompressed layers) | 40.8 GB | 33.8 GB | **34.4 GB** |
-| `du -xsh /` inside a running container (real content) | 23 GB | 20 GB | **21 GB** |
-| `docker save` (what a push/pull transfers) | 13.36 GB | 10.01 GB | **10.16 GB** |
-| installed Debian packages | 1168 | 880 | **881** |
+| measure | v0.0.3 (before) | v0.0.5 (optimized) | v0.0.6 (+ OpenCode GUI) | v0.0.7 (− Cursor) |
+|---|---|---|---|---|
+| `docker images` SIZE (uncompressed layers) | 40.8 GB | 33.8 GB | 34.4 GB | **33.1 GB** |
+| real content (`du -xs /` in a container) | 23 GB | 20 GB | 20.4 GB | **19.5 GB** |
+| `docker save` (what a push/pull transfers) | 13.36 GB | 10.01 GB | 10.16 GB | **9.88 GB** |
+| installed Debian packages | 1168 | 880 | 881 | **880** |
 
 The OpenCode desktop app costs +0.6 GB of layer data, +150 MB of transfer and exactly one
-package (all of its dependencies were already installed).
+package (all of its dependencies were already installed). Dropping Cursor in v0.0.7 gave back
+0.9 GB of content and also cost no packages — its `.deb` pulled in nothing VS Code didn't
+already need.
 
-Where the 21 GB of content lives:
+Where the 19.5 GB of content lives:
 
 | path | size | what |
 |---|---|---|
@@ -147,7 +157,6 @@ Where the 21 GB of content lives:
 | `/usr/local/lib/ollama` | 2.1 GB | Ollama + its CUDA 12/13 and Vulkan runtime libs |
 | `/usr/bin/github` + `/usr/lib/GitHub Copilot` | 1.25 GB | GitHub Copilot desktop app |
 | `/usr/share/code` | 1.0 GB | VS Code |
-| `/usr/share/cursor` | 0.9 GB | Cursor |
 | `/opt/code-server` | 0.7 GB | code-server |
 | `/opt/OpenCode` | 0.45 GB | OpenCode desktop app |
 | `/opt/google` | 0.44 GB | Google Chrome |
@@ -173,7 +182,7 @@ What was done to shrink it, without dropping any feature:
   the `CachedExtensionVSIXs` copies VS Code and code-server keep next to the installed
   extensions.
 
-The remaining gap between 33.8 GB of layers and 20 GB of content is inherited: the Jupyter
+The remaining gap between 33.1 GB of layers and 19.5 GB of content is inherited: the Jupyter
 base image's own `fix-permissions` passes over `/opt/conda` add ~6.7 GB
 (`pytorch-notebook:2026-08-03` reports 18.7 GB but contains 12 GB). Flattening this image
 (`docker export | docker import`, re-adding `ENV`/`CMD`/`ENTRYPOINT` via `--change`) would
@@ -181,13 +190,13 @@ collapse that too, at the cost of sharing no layers with the base image any more
 
 Further trims that *would* remove functionality, so they are left alone:
 `/usr/local/lib/ollama/cuda_v13` (811 MB, only used on a CUDA 13 driver), `cups` (~240 MB,
-printing from the desktop), and Chrome or Cursor (~0.4–0.9 GB each) if only one is needed.
+printing from the desktop), and Chrome (~0.44 GB) if Firefox alone is enough.
 
 ## Build
 Build locally (custom images are not built in GitHub Actions). Local builds are tagged
 `<jupyter_tag>-dev-vX.Y.Z`; bump the patch number for each new one
-(current: `2026-08-03-dev-v0.0.6`, which adds the OpenCode desktop app on top of the
-GitHub Copilot desktop app, the Firefox default-browser change, and the ~7 GB of layer
+(current: `2026-08-03-dev-v0.0.7`, which drops Cursor and adds the OpenCode desktop app on top
+of the GitHub Copilot desktop app, the Firefox default-browser change, and the ~7 GB of layer
 bloat removed — see [Image size](#image-size)).
 
 ```bash
