@@ -263,12 +263,15 @@ nobody has an answer for. The image therefore seeds `~/.local/share/keyrings/log
 **empty password**, which the daemon unlocks silently: no dialog, and secrets persist in the home
 volume.
 
-`desktop-defaults.sh` writes it, and runs three ways so it works no matter what the home directory
-looks like: at build time, from `/usr/local/bin/start-notebook.d/10-vibe-desktop-defaults.sh` at
-container start (Coder mounts a volume over `/home/jovyan`, which hides the baked file), and from
-`/etc/xdg/autostart/vibe-desktop-defaults.desktop` when the XFCE session starts. It is idempotent
-and only adds what is missing, so a choice made in the *Preferred Applications* dialog is never
-overwritten.
+`desktop-defaults.sh` writes it, and runs at build time and from
+`/usr/local/bin/start-notebook.d/10-vibe-desktop-defaults.sh` at container start (Coder mounts a
+volume over `/home/jovyan`, which hides the baked file). It is idempotent and only adds what is
+missing, so a choice made in the *Preferred Applications* dialog is never overwritten.
+
+It always writes as the notebook user, even when the container starts as root, and repairs
+`~/.config`, `~/.config/xfce4` and `~/.local/share/keyrings` if an older build left them owned by
+root. That matters: `xfconfd` needs to write `~/.config/xfce4/xfconf/`, and when it cannot the
+desktop opens on *"Unable to load a failsafe session"* instead of a panel.
 
 Two consequences worth knowing:
 
@@ -287,8 +290,9 @@ are told to type.
 Build locally (custom images are not built in GitHub Actions) **from the repo root** — the Dockerfile
 `COPY`s `desktop-defaults.sh` from this directory. Local builds are tagged
 `<jupyter_tag>-dev-vX.Y.Z`; bump the patch number for each new one (current:
-`2026-08-03-dev-v0.0.8`, which adds the keyring and preferred-terminal defaults on top of the
-OpenCode desktop app, the GitHub Copilot desktop app and the Firefox default-browser change).
+`2026-08-03-dev-v0.0.9`, which fixes the root-owned `~/.config/xfce4` that `v0.0.8` could leave
+behind and that broke the desktop session, on top of the keyring and preferred-terminal defaults,
+the OpenCode desktop app, the GitHub Copilot desktop app and the Firefox default-browser change).
 
 ```bash
 docker build . \

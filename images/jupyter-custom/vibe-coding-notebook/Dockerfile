@@ -365,8 +365,14 @@ RUN rm -rf \
 # VS Code and the Copilot app never block on a "choose a password for your keyring" dialog
 # (there is no PAM login in a container, so the daemon cannot unlock a password-protected
 # keyring and falls back to prompting gcr-prompter, which students cannot answer). The
-# script also runs at container start and at session start because Coder mounts a volume
-# over ${HOME}, hiding anything baked in here; see desktop-defaults.sh.
+# script also runs at container start because Coder mounts a volume over ${HOME}, hiding
+# anything baked in here; see desktop-defaults.sh.
+#
+# Only the container-start hook touches the session's home. An /etc/xdg/autostart entry was
+# tried first and removed: it is redundant with the hook, and a script that runs as root at
+# container start can leave ~/.config/xfce4 owned by root, which stops xfconfd from starting
+# and replaces the desktop with xfce4-session's "Unable to load a failsafe session" dialog.
+# desktop-defaults.sh now repairs that ownership and re-executes itself as ${NB_USER}.
 #
 # This extends the /etc/xdg/xfce4/helpers.rc written by the default-browser layer above, and
 # is the single place to edit preferred applications now.
@@ -384,8 +390,7 @@ RUN apt-get -y update \
  && printf '#!/bin/bash\n/usr/local/bin/vibe-desktop-defaults.sh\n' \
       >/usr/local/bin/start-notebook.d/10-vibe-desktop-defaults.sh \
  && chmod 755 /usr/local/bin/start-notebook.d/10-vibe-desktop-defaults.sh \
- && printf '[Desktop Entry]\nType=Application\nName=Vibe coding desktop defaults\nComment=Apply per-user keyring and preferred-application defaults\nExec=/usr/local/bin/vibe-desktop-defaults.sh\nTerminal=false\nNoDisplay=true\nX-GNOME-Autostart-Phase=Applications\nX-GNOME-Autostart-enabled=true\n' \
-      >/etc/xdg/autostart/vibe-desktop-defaults.desktop \
+ && rm -f /etc/xdg/autostart/vibe-desktop-defaults.desktop \
  && update-alternatives --set x-terminal-emulator /usr/bin/gnome-terminal.wrapper \
  && printf '[Preferred Applications]\nTerminalEmulator=gnome-terminal\nTerminalEmulatorDismissed=true\nWebBrowser=firefox\nWebBrowserDismissed=true\n' \
       >/etc/xdg/xfce4/helpers.rc

@@ -1,11 +1,16 @@
 #!/bin/bash
 # Per-user desktop defaults for the vibe-coding notebook image.
 #
-# This runs at container start (start-notebook.d) and again when the XFCE session starts
-# (autostart), because in Coder ${HOME} is usually a persistent volume mounted *over* the
-# home directory baked into the image, so anything configured at build time is invisible to
-# an existing workspace. Both invocations are idempotent and only add keys/files that are
-# missing, so a choice the user made by hand is never overwritten.
+# This runs at container start (start-notebook.d) and once at build time, because in Coder
+# ${HOME} is usually a persistent volume mounted *over* the home directory baked into the
+# image, so anything configured at build time is invisible to an existing workspace. Both
+# invocations are idempotent and only add files and keys that are missing, so a choice the
+# user made by hand is never overwritten.
+#
+# Everything is written as the notebook user, never as root. That matters: xfconfd creates
+# ~/.config/xfce4/xfconf/xfce-perchannel-xml/ when the session starts, and if that directory
+# belongs to root the daemon dies, xfce4-session cannot reach it over D-Bus, and the desktop
+# opens on "Unable to load a failsafe session" instead of a panel.
 #
 # 1. GNOME Keyring. There is no PAM login in a container, so the daemon has no password to
 #    unlock the Login keyring with and no keyring to reuse. The first app that tries to
@@ -20,15 +25,42 @@
 
 set -u
 
-# start-notebook.d runs as whoever started the container, which is root when the Coder
-# template asks docker-stacks to refit the user, so resolve the notebook user's home
-# explicitly instead of trusting $HOME.
+# Directories that must belong to the notebook user for the desktop to come up. A previous
+# build of this image created some of them as root, which is what broke the session.
+repair_paths=(.config .config/xfce4 .config/xfce4/xfconf .config/xfce4/helpers.rc \
+    .local .local/share .local/share/keyrings)
+
+# start-notebook.d runs as whoever started the container, which is root whenever the Coder
+# template asks docker-stacks to refit the user. Repair the ownership of the directories above,
+# then redo this script as the notebook user so nothing is created as root in the first place.
 if [ "$(id -u)" -eq 0 ]; then
-    home="$(getent passwd "${NB_USER:-jovyan}" | cut -d: -f6)"
-else
-    home="${HOME:-/home/${NB_USER:-jovyan}}"
+    user="${NB_USER:-jovyan}"
+    volume_home="$(getent passwd "$user" | cut -d: -f6)"
+    volume_uid="$(id -u "$user" 2>/dev/null)" || exit 0
+    volume_gid="$(id -g "$user" 2>/dev/null)" || exit 0
+    if [ -n "$volume_home" ] && [ -d "$volume_home" ]; then
+        for path in "${repair_paths[@]}"; do
+            if [ -e "$volume_home/$path" ] && [ "$(stat -c %u "$volume_home/$path")" != "$volume_uid" ]; then
+                chown -R "$volume_uid:$volume_gid" "$volume_home/$path" 2>/dev/null || true
+            fi
+        done
+    fi
+    exec su -s /bin/bash "$user" -c 'exec /usr/local/bin/vibe-desktop-defaults.sh'
 fi
-[ -n "$home" ] && [ -d "$home" ] && [ -w "$home" ] || exit 0
+
+home="${HOME:-/home/${NB_USER:-jovyan}}"
+[ -d "$home" ] && [ -w "$home" ] || exit 0
+
+# Unprivileged, so the repair above was skipped. docker-stacks gives the notebook user
+# passwordless sudo, which is the only way to heal a home an older build already made unusable
+# when the container itself starts as that user.
+if command -v sudo >/dev/null 2>&1; then
+    for path in "${repair_paths[@]}"; do
+        if [ -e "$home/$path" ] && [ ! -w "$home/$path" ]; then
+            sudo -n chown -R "$(id -u):$(id -g)" "$home/$path" 2>/dev/null || true
+        fi
+    done
+fi
 
 # --- 1. empty-password Login keyring -------------------------------------------------------
 keyrings="$home/.local/share/keyrings"
@@ -61,13 +93,5 @@ for setting in \
     key="${setting%%=*}"
     grep -q "^${key}=" "$helpers" || printf '%s\n' "$setting" >>"$helpers"
 done
-
-# When this ran as root (start-notebook.d in a refit container) the files it created belong
-# to root and the notebook user could not replace them later. Touch only the paths this
-# script owns -- never the whole ~/.config tree, which can be a large mounted volume.
-if [ "$(id -u)" -eq 0 ]; then
-    chown -R --reference="$home" "$keyrings" 2>/dev/null || true
-    chown --reference="$home" "$(dirname "$helpers")" "$helpers" 2>/dev/null || true
-fi
 
 exit 0
