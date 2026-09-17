@@ -289,10 +289,12 @@ are told to type.
 ## Build
 Build locally (custom images are not built in GitHub Actions) **from the repo root** — the Dockerfile
 `COPY`s `desktop-defaults.sh` from this directory. Local builds are tagged
-`<jupyter_tag>-dev-vX.Y.Z`; bump the patch number for each new one (current:
-`2026-08-03-dev-v0.0.9`, which fixes the root-owned `~/.config/xfce4` that `v0.0.8` could leave
-behind and that broke the desktop session, on top of the keyring and preferred-terminal defaults,
-the OpenCode desktop app, the GitHub Copilot desktop app and the Firefox default-browser change).
+`<jupyter_tag>-dev-vX.Y.Z`; bump the patch number for each new one, and retag an approved build as
+`<jupyter_tag>-vX.Y.Z` when publishing it.
+
+The current release is **`2026-08-03-v1.0.0`**: the GitHub Copilot and OpenCode desktop apps,
+Firefox and GNOME Terminal as the defaults, no keyring password prompts, NRP LLM configuration for
+every bundled agent, and no Cursor.
 
 ```bash
 docker build . \
