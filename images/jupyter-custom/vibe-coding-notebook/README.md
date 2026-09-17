@@ -16,6 +16,7 @@ Ollama can use a GPU when scheduled on an NVIDIA node.
 - OpenCode desktop app (GUI; launcher `opencode-desktop`, XFCE menu entry "OpenCode")
 - Google Chrome
 - Mozilla Firefox (**default browser** — see [Default browser](#default-browser))
+- GNOME Terminal (**default terminal emulator** — see [Default terminal](#default-terminal))
 - nb-venv-kernels (discover venv/uv project envs as Jupyter kernels; supersedes nb_conda_kernels)
 - JupyterLab extensions: jupyter-ai (AI chat/magics, incl. Ollama), jupyter-collaboration +
   jupyterlab-chat (realtime co-editing), jupyter-lsp, jupyterlab-code-formatter, jupyterlab-git
@@ -131,23 +132,68 @@ Chrome stays fully installed and launchable (`google-chrome`, or its menu/panel 
 To change the default at runtime, use the XFCE *Preferred Applications* dialog (writes
 `~/.config/xfce4/helpers.rc`) and/or `xdg-mime default google-chrome.desktop text/html`.
 
+### Default terminal
+GNOME Terminal is the preferred terminal emulator, so Thunar's *Open Terminal Here*, the
+desktop's *Open Terminal*, and the XFCE menu all open it:
+
+- `gnome-terminal` is installed explicitly (it used to arrive only as a transitive dependency
+  of the desktop stack, which a base bump could have dropped) and is marked manually installed.
+- `x-terminal-emulator` → `/usr/bin/gnome-terminal.wrapper` via `update-alternatives`, so
+  terminal launches from a shell or a `.desktop` file land on it too.
+- `/etc/xdg/xfce4/helpers.rc` and `~/.config/xfce4/helpers.rc` set `TerminalEmulator=gnome-terminal`.
+
+### No keyring prompts
+Chrome, OpenCode, VS Code and the Copilot app all store tokens through the freedesktop
+Secret Service. `gnome-keyring-daemon` is the provider, and because a container has no PAM
+login there is no password to unlock its *Login* keyring with — so on the first secret write
+it D-Bus-activates `gcr-prompter` and blocks the calling app on a "choose a password for your
+keyring" dialog that nobody has an answer for.
+
+The image therefore seeds `~/.local/share/keyrings/login.keyring` with an **empty password**,
+which the daemon unlocks silently: no dialog, and secrets persist in the home volume.
+`desktop-defaults.sh` writes it, and runs three ways so it works no matter what the home
+directory looks like:
+
+- at build time, for a baked-in home;
+- from `/usr/local/bin/start-notebook.d/10-vibe-desktop-defaults.sh` at container start
+  (Coder mounts a volume over `/home/jovyan`, which hides the baked file);
+- from `/etc/xdg/autostart/vibe-desktop-defaults.desktop` when the XFCE session starts.
+
+It is idempotent and only adds what is missing, so a choice made in the *Preferred
+Applications* dialog is never overwritten.
+
+Two consequences worth knowing:
+
+- **Secrets are stored in plaintext** in `~/.local/share/keyrings/login.keyring`. That is the
+  deliberate trade for a single-user teaching container; do not reuse this image for shared
+  or sensitive accounts.
+- A keyring that predates this change and *was* given a password keeps prompting. Delete it
+  (`rm ~/.local/share/keyrings/login.keyring`) and restart the workspace; the hook recreates
+  a working one. The hook also moves aside any keyring in the obsolete pre-INI format as
+  `login.keyring.bak` rather than deleting it.
+
+Setting the keyring password to `jovyan` instead would *not* fix this: nothing in the
+container unlocks it at login, so the dialog would still appear — it would simply ask for a
+password students are told to type.
+
 ## Image size
 The image bundles several complete desktop applications on top of a CUDA PyTorch stack,
 so it is big by design. Note that `docker images` reports the **sum of uncompressed layer
 tars**, which overstates the files actually present (a file rewritten by a later layer is
 counted in both). Measured on the current dev tag:
 
-| measure | v0.0.3 (before) | v0.0.5 (optimized) | v0.0.6 (+ OpenCode GUI) | v0.0.7 (− Cursor) |
-|---|---|---|---|---|
-| `docker images` SIZE (uncompressed layers) | 40.8 GB | 33.8 GB | 34.4 GB | **33.1 GB** |
-| real content (`du -xs /` in a container) | 23 GB | 20 GB | 20.4 GB | **19.5 GB** |
-| `docker save` (what a push/pull transfers) | 13.36 GB | 10.01 GB | 10.16 GB | **9.88 GB** |
-| installed Debian packages | 1168 | 880 | 881 | **880** |
+| measure | v0.0.3 (before) | v0.0.5 (optimized) | v0.0.6 (+ OpenCode GUI) | v0.0.7 (− Cursor) | v0.0.8 (+ keyring/terminal) |
+|---|---|---|---|---|---|
+| `docker images` SIZE (uncompressed layers) | 40.8 GB | 33.8 GB | 34.4 GB | 33.1 GB | **33.1 GB** |
+| real content (`du -xs /` in a container) | 23 GB | 20 GB | 20.4 GB | 19.5 GB | **19.5 GB** |
+| `docker save` (what a push/pull transfers) | 13.36 GB | 10.01 GB | 10.16 GB | 9.88 GB | **9.85 GB** |
+| installed Debian packages | 1168 | 880 | 881 | 880 | **880** |
 
 The OpenCode desktop app costs +0.6 GB of layer data, +150 MB of transfer and exactly one
 package (all of its dependencies were already installed). Dropping Cursor in v0.0.7 gave back
 0.9 GB of content and also cost no packages — its `.deb` pulled in nothing VS Code didn't
-already need.
+already need. v0.0.8 (keyring + preferred-terminal defaults) is one small layer of scripts and
+config files: no new packages, no measurable change in size.
 
 Where the 19.5 GB of content lives:
 
@@ -195,9 +241,11 @@ printing from the desktop), and Chrome (~0.44 GB) if Firefox alone is enough.
 ## Build
 Build locally (custom images are not built in GitHub Actions). Local builds are tagged
 `<jupyter_tag>-dev-vX.Y.Z`; bump the patch number for each new one
-(current: `2026-08-03-dev-v0.0.7`, which drops Cursor and adds the OpenCode desktop app on top
-of the GitHub Copilot desktop app, the Firefox default-browser change, and the ~7 GB of layer
-bloat removed — see [Image size](#image-size)).
+(current: `2026-08-03-dev-v0.0.8`, which adds the keyring and preferred-terminal defaults on
+top of the Cursor removal, the OpenCode desktop app, the GitHub Copilot desktop app, the
+Firefox default-browser change, and the ~7 GB of layer bloat removed — see
+[Image size](#image-size)). The build context must be the repo root: the Dockerfile `COPY`s
+`desktop-defaults.sh` from this directory.
 
 ```bash
 docker build . \

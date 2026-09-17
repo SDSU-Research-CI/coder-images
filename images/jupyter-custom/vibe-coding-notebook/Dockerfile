@@ -359,7 +359,38 @@ RUN rm -rf \
  && apt clean \
  && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb \
  && fix-permissions "/home/${NB_USER}"
+
+# Desktop defaults that have to survive a persistent home volume: GNOME Terminal as the
+# preferred terminal emulator, and an empty-password Login keyring so that Chrome, OpenCode,
+# VS Code and the Copilot app never block on a "choose a password for your keyring" dialog
+# (there is no PAM login in a container, so the daemon cannot unlock a password-protected
+# keyring and falls back to prompting gcr-prompter, which students cannot answer). The
+# script also runs at container start and at session start because Coder mounts a volume
+# over ${HOME}, hiding anything baked in here; see desktop-defaults.sh.
+#
+# This extends the /etc/xdg/xfce4/helpers.rc written by the default-browser layer above, and
+# is the single place to edit preferred applications now.
+#
+# gnome-terminal is already in the image but only as a transitive dependency of the desktop
+# stack (it provides x-terminal-emulator), so it is installed explicitly to make the
+# dependency intentional; that costs no extra download.
+USER root
+COPY images/jupyter-custom/vibe-coding-notebook/desktop-defaults.sh /usr/local/bin/vibe-desktop-defaults.sh
+RUN apt-get -y update \
+ && apt-get install -y --no-install-recommends gnome-terminal \
+ && apt clean \
+ && rm -rf /var/lib/apt/lists/* \
+ && chmod 755 /usr/local/bin/vibe-desktop-defaults.sh \
+ && printf '#!/bin/bash\n/usr/local/bin/vibe-desktop-defaults.sh\n' \
+      >/usr/local/bin/start-notebook.d/10-vibe-desktop-defaults.sh \
+ && chmod 755 /usr/local/bin/start-notebook.d/10-vibe-desktop-defaults.sh \
+ && printf '[Desktop Entry]\nType=Application\nName=Vibe coding desktop defaults\nComment=Apply per-user keyring and preferred-application defaults\nExec=/usr/local/bin/vibe-desktop-defaults.sh\nTerminal=false\nNoDisplay=true\nX-GNOME-Autostart-Phase=Applications\nX-GNOME-Autostart-enabled=true\n' \
+      >/etc/xdg/autostart/vibe-desktop-defaults.desktop \
+ && update-alternatives --set x-terminal-emulator /usr/bin/gnome-terminal.wrapper \
+ && printf '[Preferred Applications]\nTerminalEmulator=gnome-terminal\nTerminalEmulatorDismissed=true\nWebBrowser=firefox\nWebBrowserDismissed=true\n' \
+      >/etc/xdg/xfce4/helpers.rc
 USER ${NB_USER}
+RUN /usr/local/bin/vibe-desktop-defaults.sh
 
 # Environment variables
 ENV SDL_AUDIODRIVER=dummy
