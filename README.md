@@ -86,8 +86,9 @@ Firefox (the default browser) and GNOME Terminal (the default terminal emulator,
 keyring pre-configured so desktop apps never ask for a vault password), and JupyterLab
 AI/collaboration extensions (jupyter-ai, jupyter-collaboration, jupyterlab-chat,
 jupyterlab-lsp, jupyterlab-code-formatter, jupyterlab-git).
-See `images/jupyter-custom/vibe-coding-notebook/README.md` for why the image is ~33 GB
-and what was done to keep it from growing further.
+See `images/jupyter-custom/vibe-coding-notebook/README.md` for the desktop launchers, the
+browser/terminal/keyring defaults, and the configurations that point its agents at SDSU's
+NRP managed LLM service.
 
 ```bash
 docker build . \
