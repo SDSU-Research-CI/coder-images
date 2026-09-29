@@ -1,5 +1,7 @@
 # RStudio Desktop Notebook
-A container image for a Jupyter Notebook with RStudio and a desktop environment
+A container image for a Jupyter Notebook with RStudio and a desktop environment.
+
+This image is based on the [Jupyter Docker Stacks R Notebook](https://github.com/jupyter/docker-stacks/tree/main/images/r-notebook) container image.
 
 ## Software Inluded
 - RStudio (Server and Desktop)
@@ -28,46 +30,26 @@ hooks, and libraries are applied.
 ## Using a custom version of R
 
 These steps show how to run RStudio Desktop with your own R (for example `r-base=4.6.0`)
-installed into a persistent conda environment under `$HOME`.
+installed into a persistent conda environment under `/home/jovyan`, the default path in the JupyterLab file explorer.
 
 ### 1. Check the latest R version supported by the installed RStudio
 
 RStudio is built against a specific range of R releases, so start a Jupyter terminal
-(`Launcher` -> `Terminal`) and note the RStudio version in this image:
+(`Launcher` -> `Terminal`) and note the RStudio version in this image by running this command:
 
 ```bash
 rstudio-server version
-# 2026.07.1+147 (Pacific Dogwood) for Ubuntu Jammy
 ```
 
-RStudio records the minimum and maximum R versions for that build in
-`cmake/globals.cmake` of the matching source tag, which you can query directly:
-
-```bash
-RS=$(rstudio-server version | awk '{print $1}')
-curl -sL "https://raw.githubusercontent.com/rstudio/rstudio/v${RS/+/%2B}/cmake/globals.cmake" \
-  | grep -E 'set\(RSTUDIO_R_VERSION_(REQUIRED|MAXIMUM) '
-# set(RSTUDIO_R_VERSION_REQUIRED "3.6.0")
-# set(RSTUDIO_R_VERSION_MAXIMUM "4.6.0")
+E.g.:
+```text
+2026.07.1+147 (Pacific Dogwood) for Ubuntu Jammy
 ```
 
-Choose an `r-base` version between those two bounds. An R newer than the maximum still
-starts -- RStudio logs a warning and may disable the Plots pane -- so prefer the highest
-version at or below `RSTUDIO_R_VERSION_MAXIMUM`. The Plots pane additionally requires an
-R whose graphics engine is at or below the ceiling RStudio was tested with:
-
-```bash
-/usr/lib/rstudio-server/bin/rsession --help 2>&1 | grep -m1 r-compatible-graphics-engine-version
-#   --r-compatible-graphics-engine-version arg (=17)
-```
-
-RStudio Desktop is the same build as RStudio Server here; check it with
-`cat /usr/lib/rstudio/resources/app/VERSION` (the `rstudio` CLI cannot print a version in
-the container because Electron needs a display and sandbox).
+Use your preferred search engine to find the newest supported version of R for the above RStudio version.
 
 New R support is announced in the [RStudio release notes](https://docs.posit.co/ide/news/)
--- for example RStudio `2026.04.0 "Globemaster Allium"` added "Support for the upcoming
-R 4.6.0 release", so the `2026.07.1` build in this image supports R 4.6.x.
+-- for example RStudio `2026.07.1` build supports R version 4.6.x.
 
 ### 2. Create a conda environment with that R version
 
@@ -84,11 +66,11 @@ an `RStudio (my-r)` tile:
 conda create -y --prefix ~/my-r --channel conda-forge r-base=4.6.0
 ```
 
-Confirm the environment is on `$HOME` and not `/opt/conda`:
+Confirm the environment is on `/home/jovyan` and not `/opt/conda`:
 
 ```bash
 conda env list
-# /home/jovyan/my-r
+#          /home/jovyan/my-r
 # base  *  /opt/conda
 ```
 
@@ -101,20 +83,19 @@ until the server restarts. Stop the notebook following
 
 ### 4. Relaunch the RStudio Desktop Notebook
 
-Start your server again from the hub control panel, selecting the RStudio Desktop Notebook
-image. The startup scan now registers a tile for every environment containing an
-executable `bin/R`.
+Start your server again from the hub control panel, selecting the RStudio Desktop Notebook image. 
+The startup scan now registers a tile for every conda environment containing an executable `bin/R`.
 
 ### 5. Launch RStudio from the custom environment
 
 On the Jupyter `Launcher`, under **Notebook**, open the `RStudio (<env-name>)` tile --
-`RStudio (my-r)` for the environment above. The `?` in the tile label is the app version
-reported by the proxy and is expected. The session URL contains the matching proxy path,
-`.../rstudio-conda-my-r/`.
+`RStudio (my-r)` for the environment above.
 
 ![The RStudio (my-r) launcher tile and the conda env list](docs/images/rstudio-conda-tile.png)
 
 ### 6. Verify the RStudio session is using your R version
+The browser tab's URL contains the matching proxy path,
+`.../rstudio-conda-my-r/`.
 
 The R selector at the top of the Console pane and the startup banner both report the
 version, or run:
@@ -124,9 +105,4 @@ R.version.string
 # [1] "R version 4.6.0 ..."
 ```
 
-When an earlier session is restored with the new environment, the console notes the
-switch, e.g. `R version change [4.5.3 -> 4.6.0] detected when restoring session`.
-
 ![RStudio running with R 4.6.0 from the my-r environment](docs/images/rstudio-session-r-version.png)
-
-This image is based on the [Jupyter Docker Stacks R Notebook](https://github.com/jupyter/docker-stacks/tree/main/images/r-notebook) container image.
