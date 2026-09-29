@@ -20,5 +20,9 @@ hooks, and libraries are applied.
 - Additional search roots can be supplied with the colon-separated
   `JUPYTER_RSESSION_PROXY_ENV_DIRS` environment variable (prefix environments such as
   `conda create -p ~/my-r-env ...` under `$HOME` are also detected).
+  By default, the following paths will be searched for conda environments containing R:
+  - `/home/jovyan`
+  - `/home/jovyan/.conda`
+  - `/home/jovyan/envs`
 
 This image is based on the [Jupyter Docker Stacks R Notebook](https://github.com/jupyter/docker-stacks/tree/main/images/r-notebook) container image.
